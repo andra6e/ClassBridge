@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/hijos_provider.dart';
 import '../../../shared/widgets/app_loader.dart';
 import '../../asistencia/data/asistencia_models.dart';
 import '../../asistencia/data/asistencia_repository.dart';
@@ -20,43 +22,30 @@ class _ChatScreenState extends State<ChatScreen> {
   final _mensajeCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
-  List<EstudianteModelo> _estudiantes = [];
-  EstudianteModelo? _hijoSeleccionado;
-
   List<AsistenciaModelo> _sesiones = [];
   AsistenciaModelo? _sesionSeleccionada;
 
   final List<MensajeChat> _mensajes = [];
-  bool _cargandoHijos = true;
   bool _cargandoSesiones = false;
   bool _enviando = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _cargarEstudiantes();
-  }
+  /// Guardamos el id del hijo para detectar cambios en didChangeDependencies.
+  int? _ultimoHijoId;
 
-  Future<void> _cargarEstudiantes() async {
-    try {
-      final lista = await _asistenciaRepo.obtenerEstudiantes();
-      setState(() {
-        _estudiantes = lista;
-        _cargandoHijos = false;
-      });
-      if (lista.isNotEmpty) {
-        _seleccionarHijo(lista.first);
-      }
-    } catch (_) {
-      setState(() {
-        _cargandoHijos = false;
-      });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.watch<HijosProvider>();
+    final nuevo = provider.hijoSeleccionado;
+
+    if (nuevo != null && nuevo.idEstudiante != _ultimoHijoId) {
+      _ultimoHijoId = nuevo.idEstudiante;
+      _cargarSesiones(nuevo.idEstudiante);
     }
   }
 
-  Future<void> _seleccionarHijo(EstudianteModelo hijo) async {
+  Future<void> _cargarSesiones(int idEstudiante) async {
     setState(() {
-      _hijoSeleccionado = hijo;
       _cargandoSesiones = true;
       _sesionSeleccionada = null;
       _sesiones = [];
@@ -64,25 +53,31 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final historial = await _asistenciaRepo.obtenerHistorial(hijo.idEstudiante);
+      final historial = await _asistenciaRepo.obtenerHistorial(idEstudiante);
       final conSesion = historial.where((a) => a.sesion != null).toList();
-      setState(() {
-        _sesiones = conSesion;
-        _cargandoSesiones = false;
-        if (conSesion.isNotEmpty) {
-          _sesionSeleccionada = conSesion.first;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _sesiones = conSesion;
+          _cargandoSesiones = false;
+          if (conSesion.isNotEmpty) {
+            _sesionSeleccionada = conSesion.first;
+          }
+        });
+      }
     } catch (_) {
-      setState(() {
-        _cargandoSesiones = false;
-      });
+      if (mounted) {
+        setState(() {
+          _cargandoSesiones = false;
+        });
+      }
     }
   }
 
   Future<void> _enviarMensaje(String texto) async {
     if (texto.trim().isEmpty) return;
-    if (_hijoSeleccionado == null || _sesionSeleccionada == null) return;
+    final provider = context.read<HijosProvider>();
+    if (provider.hijoSeleccionado == null || _sesionSeleccionada == null)
+      return;
 
     final msg = texto.trim();
     _mensajeCtrl.clear();
@@ -95,7 +90,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final respuesta = await _chatRepo.enviarMensaje(
-        idEstudiante: _hijoSeleccionado!.idEstudiante,
+        idEstudiante: provider.hijoSeleccionado!.idEstudiante,
         idSesion: _sesionSeleccionada!.sesion!.idSesion,
         mensaje: msg,
       );
@@ -104,10 +99,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (e) {
       setState(() {
-        _mensajes.add(MensajeChat(
-          texto: 'Error: $e',
-          esUsuario: false,
-        ));
+        _mensajes.add(MensajeChat(texto: 'Error: $e', esUsuario: false));
       });
     } finally {
       setState(() => _enviando = false);
@@ -136,14 +128,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_cargandoHijos) {
+    final provider = context.watch<HijosProvider>();
+
+    if (provider.cargando) {
       return const CargadorApp(mensaje: 'Cargando...');
     }
 
-    if (_estudiantes.isEmpty) {
-      return const Center(
-        child: Text('No tienes hijos vinculados.'),
-      );
+    if (provider.hijos.isEmpty) {
+      return const Center(child: Text('No tienes hijos vinculados.'));
     }
 
     return Column(
@@ -161,20 +153,25 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildSelectores() {
+    final provider = context.watch<HijosProvider>();
+
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       color: Colors.grey.shade50,
       child: Column(
         children: [
           DropdownButtonFormField<int>(
-            initialValue: _hijoSeleccionado?.idEstudiante,
+            value: provider.hijoSeleccionado?.idEstudiante,
             decoration: const InputDecoration(
               labelText: 'Hijo',
               border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               isDense: true,
             ),
-            items: _estudiantes.map((e) {
+            items: provider.hijos.map((e) {
               return DropdownMenuItem(
                 value: e.idEstudiante,
                 child: Text(e.nombreCompleto, overflow: TextOverflow.ellipsis),
@@ -182,8 +179,10 @@ class _ChatScreenState extends State<ChatScreen> {
             }).toList(),
             onChanged: (id) {
               if (id == null) return;
-              final hijo = _estudiantes.firstWhere((e) => e.idEstudiante == id);
-              _seleccionarHijo(hijo);
+              final hijo = provider.hijos.firstWhere(
+                (e) => e.idEstudiante == id,
+              );
+              provider.seleccionarHijo(hijo);
             },
           ),
           const SizedBox(height: 8),
@@ -195,12 +194,14 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: const InputDecoration(
                 labelText: 'Sesion / Fecha',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 isDense: true,
               ),
               items: _sesiones.map((a) {
-                final label =
-                    '${a.fechaFormateada} - ${a.materiaGrupo}';
+                final label = '${a.fechaFormateada} - ${a.materiaGrupo}';
                 return DropdownMenuItem(
                   value: a.idAsistencia,
                   child: Text(label, overflow: TextOverflow.ellipsis),
@@ -209,8 +210,9 @@ class _ChatScreenState extends State<ChatScreen> {
               onChanged: (id) {
                 if (id == null) return;
                 setState(() {
-                  _sesionSeleccionada =
-                      _sesiones.firstWhere((a) => a.idAsistencia == id);
+                  _sesionSeleccionada = _sesiones.firstWhere(
+                    (a) => a.idAsistencia == id,
+                  );
                   _mensajes.clear();
                 });
               },
@@ -252,19 +254,13 @@ class _ChatScreenState extends State<ChatScreen> {
               Text(
                 'Pregunta lo que necesites sobre la clase',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 15,
-                ),
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 15),
               ),
               const SizedBox(height: 4),
               Text(
                 'Usa las acciones rapidas o escribe tu pregunta',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey.shade400,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
               ),
             ],
           ),
@@ -282,10 +278,7 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: SizedBox(
-                width: 60,
-                child: LinearProgressIndicator(),
-              ),
+              child: SizedBox(width: 60, child: LinearProgressIndicator()),
             ),
           );
         }
@@ -321,11 +314,16 @@ class _ChatScreenState extends State<ChatScreen> {
               textInputAction: TextInputAction.send,
               maxLines: 3,
               minLines: 1,
-              onSubmitted: _enviando ? null : (_) => _enviarMensaje(_mensajeCtrl.text),
+              onSubmitted: _enviando
+                  ? null
+                  : (_) => _enviarMensaje(_mensajeCtrl.text),
               decoration: const InputDecoration(
                 hintText: 'Escribe tu pregunta...',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 isDense: true,
               ),
             ),

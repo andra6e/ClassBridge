@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/storage/secure_storage.dart';
+import '../../../providers/hijos_provider.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/login_screen.dart';
 import '../../chat/presentation/chat_screen.dart';
@@ -23,6 +25,8 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
     _cargarNombre();
+    // Cargar hijos una sola vez al entrar al Home
+    Future.microtask(() => context.read<HijosProvider>().cargarHijos());
   }
 
   Future<void> _cargarNombre() async {
@@ -53,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     await AuthRepository().cerrarSesion();
     if (!mounted) return;
+    context.read<HijosProvider>().limpiar();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
@@ -78,10 +83,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             Text(
               _nombre,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -96,10 +98,7 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       body: TabBarView(
         controller: _tabCtrl,
-        children: const [
-          ChatScreen(),
-          AsistenciaScreen(),
-        ],
+        children: const [ChatScreen(), AsistenciaScreen()],
       ),
     );
   }

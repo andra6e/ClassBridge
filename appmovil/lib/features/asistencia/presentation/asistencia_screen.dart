@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/hijos_provider.dart';
 import '../../../shared/widgets/app_loader.dart';
 import '../data/asistencia_models.dart';
 import '../data/asistencia_repository.dart';
@@ -15,56 +17,46 @@ class AsistenciaScreen extends StatefulWidget {
 class _AsistenciaScreenState extends State<AsistenciaScreen> {
   final _repo = AsistenciaRepository();
 
-  List<EstudianteModelo> _estudiantes = [];
-  EstudianteModelo? _hijoSeleccionado;
   List<AsistenciaModelo> _historial = [];
-
-  bool _cargandoHijos = true;
   bool _cargandoHistorial = false;
-  String? _error;
+  String? _errorHistorial;
+
+  /// Guardamos el id del hijo para detectar cambios en didChangeDependencies.
+  int? _ultimoHijoId;
 
   @override
-  void initState() {
-    super.initState();
-    _cargarEstudiantes();
-  }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.watch<HijosProvider>();
+    final nuevo = provider.hijoSeleccionado;
 
-  Future<void> _cargarEstudiantes() async {
-    try {
-      final lista = await _repo.obtenerEstudiantes();
-      setState(() {
-        _estudiantes = lista;
-        _cargandoHijos = false;
-      });
-      if (lista.isNotEmpty) {
-        _seleccionarHijo(lista.first);
-      }
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _cargandoHijos = false;
-      });
+    if (nuevo != null && nuevo.idEstudiante != _ultimoHijoId) {
+      _ultimoHijoId = nuevo.idEstudiante;
+      _cargarHistorial(nuevo.idEstudiante);
     }
   }
 
-  Future<void> _seleccionarHijo(EstudianteModelo hijo) async {
+  Future<void> _cargarHistorial(int idEstudiante) async {
     setState(() {
-      _hijoSeleccionado = hijo;
       _cargandoHistorial = true;
-      _error = null;
+      _errorHistorial = null;
     });
 
     try {
-      final historial = await _repo.obtenerHistorial(hijo.idEstudiante);
-      setState(() {
-        _historial = historial;
-        _cargandoHistorial = false;
-      });
+      final historial = await _repo.obtenerHistorial(idEstudiante);
+      if (mounted) {
+        setState(() {
+          _historial = historial;
+          _cargandoHistorial = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _cargandoHistorial = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorHistorial = e.toString();
+          _cargandoHistorial = false;
+        });
+      }
     }
   }
 
@@ -74,18 +66,22 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         builder: (_) => DetalleDiaScreen(asistencia: asistencia),
       ),
     );
-    if (resultado == true && _hijoSeleccionado != null) {
-      _seleccionarHijo(_hijoSeleccionado!);
+    if (resultado == true && _ultimoHijoId != null) {
+      _cargarHistorial(_ultimoHijoId!);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_cargandoHijos) {
+    final provider = context.watch<HijosProvider>();
+
+    // Estado: cargando hijos
+    if (provider.cargando) {
       return const CargadorApp(mensaje: 'Cargando hijos...');
     }
 
-    if (_error != null && _estudiantes.isEmpty) {
+    // Estado: error al cargar hijos
+    if (provider.error != null && provider.hijos.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -94,14 +90,15 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             children: [
               Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center),
+              Text(provider.error!, textAlign: TextAlign.center),
             ],
           ),
         ),
       );
     }
 
-    if (_estudiantes.isEmpty) {
+    // Estado: sin hijos
+    if (provider.hijos.isEmpty) {
       return const Center(
         child: Text('No tienes hijos vinculados a tu cuenta.'),
       );
@@ -113,13 +110,16 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: DropdownButtonFormField<int>(
-            initialValue: _hijoSeleccionado?.idEstudiante,
+            value: provider.hijoSeleccionado?.idEstudiante,
             decoration: const InputDecoration(
               labelText: 'Seleccionar hijo',
               border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
             ),
-            items: _estudiantes.map((e) {
+            items: provider.hijos.map((e) {
               return DropdownMenuItem(
                 value: e.idEstudiante,
                 child: Text(e.nombreCompleto),
@@ -127,29 +127,29 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             }).toList(),
             onChanged: (id) {
               if (id == null) return;
-              final hijo = _estudiantes.firstWhere((e) => e.idEstudiante == id);
-              _seleccionarHijo(hijo);
+              final hijo = provider.hijos.firstWhere(
+                (e) => e.idEstudiante == id,
+              );
+              provider.seleccionarHijo(hijo);
             },
           ),
         ),
         if (_cargandoHistorial)
           const Expanded(child: CargadorApp(mensaje: 'Cargando historial...'))
-        else if (_error != null && _historial.isEmpty)
+        else if (_errorHistorial != null && _historial.isEmpty)
           Expanded(
             child: Center(
-              child: Text(_error!, textAlign: TextAlign.center),
+              child: Text(_errorHistorial!, textAlign: TextAlign.center),
             ),
           )
         else if (_historial.isEmpty)
           const Expanded(
-            child: Center(
-              child: Text('No hay registros de asistencia aun.'),
-            ),
+            child: Center(child: Text('No hay registros de asistencia aun.')),
           )
         else
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () => _seleccionarHijo(_hijoSeleccionado!),
+              onRefresh: () => _cargarHistorial(_ultimoHijoId!),
               child: ListView.builder(
                 padding: const EdgeInsets.only(top: 8, bottom: 16),
                 itemCount: _historial.length,
