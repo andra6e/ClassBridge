@@ -1,0 +1,18 @@
+node_modules/
+.env
+*.log
+.DS_Store
+Thumbs.db
+
+# Flutter
+appmovil/.dart_tool/
+appmovil/build/
+appmovil/.flutter-plugins
+appmovil/.flutter-plugins-dependencies
+
+# Dashboard
+dashboard/dist/
+
+# Backend
+backend/src/uploads/*
+!backend/src/uploads/.gitkeep

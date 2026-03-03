@@ -1,0 +1,24 @@
+ERROR: "Unable to delete directory" / "flutter tool cannot access the file"
+
+CAUSA: Windows bloquea archivos porque otro proceso los usa (Cursor, OneDrive, antivirus).
+
+SOLUCIONES (en orden):
+
+1. EJECUTAR EL SCRIPT DESPUES DE CERRAR CURSOR
+   - Cierra Cursor por completo
+   - Abre PowerShell en appmovil/
+   - Ejecuta: powershell -ExecutionPolicy Bypass -File limpiar_y_ejecutar.ps1
+
+2. MOVER EL PROYECTO FUERA DE DOCUMENTS/ONEDRIVE
+   - Copia ClassBridge a C:\ClassBridge (o C:\dev\ClassBridge)
+   - OneDrive sincroniza Documents y bloquea archivos
+   - Abre el proyecto desde la nueva ruta
+
+3. PAUSAR ONEDRIVE
+   - Clic en el icono OneDrive en la bandeja
+   - Pausar sincronizacion 24 horas
+   - Ejecutar flutter run
+
+4. INICIAR EMULADOR ANTES
+   - flutter emulators --launch <nombre_del_emulador>
+   - flutter run
