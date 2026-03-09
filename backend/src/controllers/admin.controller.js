@@ -1,141 +1,144 @@
-const svc = require('../services/admin.service');
+const adminService = require('../services/admin.service');
 const { exito, error, creado } = require('../utils/response');
-
-// ── MAESTROS ──
 
 async function listarMaestros(req, res, next) {
   try {
-    const lista = await svc.listarMaestros(req.usuario.id_escuela);
-    return exito(res, lista, 'Maestros');
+    const resultado = await adminService.listarMaestros();
+    return exito(res, resultado, 'Maestros listados');
   } catch (err) { next(err); }
 }
 
 async function crearMaestro(req, res, next) {
   try {
-    const resultado = await svc.crearMaestro(req.usuario.id_escuela, req.body);
-    if (resultado.error) return error(res, resultado.error, 409);
-    return creado(res, resultado.maestro, 'Maestro creado');
+    const resultado = await adminService.crearMaestro(req.body);
+    if (resultado.error) return error(res, resultado.error, 400);
+    return creado(res, resultado, 'Maestro creado');
   } catch (err) { next(err); }
 }
 
-async function cambiarEstadoMaestro(req, res, next) {
+async function toggleMaestro(req, res, next) {
   try {
-    const id = parseInt(req.params.id_usuario, 10);
-    if (isNaN(id)) return error(res, 'id_usuario invalido', 400);
-    const resultado = await svc.cambiarEstadoMaestro(req.usuario.id_escuela, id, req.body.activo);
+    const resultado = await adminService.toggleMaestro(req.params.id, req.body.activo);
+    if (resultado.error) return error(res, resultado.error, 400);
+    return exito(res, resultado, 'Estado del maestro actualizado');
+  } catch (err) { next(err); }
+}
+
+async function listarPadres(req, res, next) {
+  try {
+    const resultado = await adminService.listarPadres();
+    return exito(res, resultado, 'Padres listados');
+  } catch (err) { next(err); }
+}
+
+async function obtenerPadre(req, res, next) {
+  try {
+    const resultado = await adminService.obtenerPadre(req.params.id);
     if (resultado.error) return error(res, resultado.error, 404);
-    return exito(res, resultado.maestro, 'Estado actualizado');
+    return exito(res, resultado, 'Padre obtenido');
   } catch (err) { next(err); }
 }
 
-// ── GRUPOS ──
-
-async function listarGrupos(req, res, next) {
+async function crearPadre(req, res, next) {
   try {
-    const lista = await svc.listarGrupos(req.usuario.id_escuela);
-    return exito(res, lista, 'Grupos');
-  } catch (err) { next(err); }
-}
-
-async function crearGrupo(req, res, next) {
-  try {
-    const resultado = await svc.crearGrupo(req.usuario.id_escuela, req.body);
+    const resultado = await adminService.crearPadre(req.body);
     if (resultado.error) return error(res, resultado.error, 400);
-    return creado(res, resultado.grupo, 'Grupo creado');
+    return creado(res, resultado, 'Padre creado');
   } catch (err) { next(err); }
 }
-
-async function asignarMaestro(req, res, next) {
-  try {
-    const id = parseInt(req.params.id_grupo, 10);
-    if (isNaN(id)) return error(res, 'id_grupo invalido', 400);
-    const resultado = await svc.asignarMaestro(req.usuario.id_escuela, id, req.body.id_maestro);
-    if (resultado.error) return error(res, resultado.error, 400);
-    return exito(res, resultado.grupo, 'Maestro asignado');
-  } catch (err) { next(err); }
-}
-
-// ── ESTUDIANTES ──
 
 async function listarEstudiantes(req, res, next) {
   try {
-    const lista = await svc.listarEstudiantes(req.usuario.id_escuela, req.query.busqueda);
-    return exito(res, lista, 'Estudiantes');
+    const resultado = await adminService.listarEstudiantes();
+    return exito(res, resultado, 'Estudiantes listados');
   } catch (err) { next(err); }
 }
 
 async function crearEstudiante(req, res, next) {
   try {
-    const resultado = await svc.crearEstudiante(req.usuario.id_escuela, req.body);
-    if (resultado.error) return error(res, resultado.error, 409);
-    return creado(res, resultado.estudiante, 'Estudiante creado');
-  } catch (err) { next(err); }
-}
-
-async function cambiarEstadoEstudiante(req, res, next) {
-  try {
-    const id = parseInt(req.params.id_estudiante, 10);
-    if (isNaN(id)) return error(res, 'id_estudiante invalido', 400);
-    const resultado = await svc.cambiarEstadoEstudiante(req.usuario.id_escuela, id, req.body.activo);
-    if (resultado.error) return error(res, resultado.error, 404);
-    return exito(res, resultado.estudiante, 'Estado actualizado');
-  } catch (err) { next(err); }
-}
-
-// ── MATRICULAS ──
-
-async function listarInscritos(req, res, next) {
-  try {
-    const id = parseInt(req.params.id_grupo, 10);
-    if (isNaN(id)) return error(res, 'id_grupo invalido', 400);
-    const resultado = await svc.listarInscritos(req.usuario.id_escuela, id);
-    if (resultado.error) return error(res, resultado.error, 404);
-    return exito(res, resultado.inscritos, 'Inscritos');
-  } catch (err) { next(err); }
-}
-
-async function matricularEstudiante(req, res, next) {
-  try {
-    const resultado = await svc.matricularEstudiante(
-      req.usuario.id_escuela, req.body.id_grupo, req.body.id_estudiante
-    );
-    if (resultado.error) return error(res, resultado.error, 409);
-    return creado(res, resultado.inscripcion, 'Estudiante matriculado');
-  } catch (err) { next(err); }
-}
-
-async function retirarEstudiante(req, res, next) {
-  try {
-    const resultado = await svc.retirarEstudiante(
-      req.usuario.id_escuela, req.body.id_grupo, req.body.id_estudiante
-    );
+    const resultado = await adminService.crearEstudiante(req.body);
     if (resultado.error) return error(res, resultado.error, 400);
-    return exito(res, resultado.inscripcion, 'Estudiante retirado');
+    return creado(res, resultado, 'Estudiante creado');
   } catch (err) { next(err); }
 }
 
-// ── PADRES ──
-
-async function crearPadre(req, res, next) {
+async function listarGrados(req, res, next) {
   try {
-    const resultado = await svc.crearPadre(req.usuario.id_escuela, req.body);
-    if (resultado.error) return error(res, resultado.error, 409);
-    return creado(res, resultado.padre, 'Padre creado');
+    const resultado = await adminService.listarGrados();
+    return exito(res, resultado, 'Grados listados');
   } catch (err) { next(err); }
 }
 
-async function vincularPadreEstudiante(req, res, next) {
+async function listarMatriculas(req, res, next) {
   try {
-    const resultado = await svc.vincularPadreEstudiante(req.usuario.id_escuela, req.body);
-    if (resultado.error) return error(res, resultado.error, 409);
-    return creado(res, resultado.vinculo, 'Vinculo creado');
+    const resultado = await adminService.listarMatriculas(req.query.anio_escolar);
+    return exito(res, resultado, 'Matriculas listadas');
+  } catch (err) { next(err); }
+}
+
+async function registrarFamilia(req, res, next) {
+  try {
+    const resultado = await adminService.registrarFamilia(req.body);
+    if (resultado.error) return error(res, resultado.error, 400);
+    return creado(res, resultado, 'Familia registrada correctamente');
+  } catch (err) { next(err); }
+}
+
+async function crearMatricula(req, res, next) {
+  try {
+    const resultado = await adminService.crearMatricula(req.body);
+    if (resultado.error) return error(res, resultado.error, 400);
+    return creado(res, resultado, 'Matricula creada');
+  } catch (err) { next(err); }
+}
+
+async function crearAsignacion(req, res, next) {
+  try {
+    const resultado = await adminService.crearAsignacion(req.body);
+    if (resultado.error) return error(res, resultado.error, 400);
+    return creado(res, resultado, 'Asignacion creada');
+  } catch (err) { next(err); }
+}
+
+async function eliminarAsignacion(req, res, next) {
+  try {
+    const resultado = await adminService.eliminarAsignacion(req.params.id);
+    if (resultado.error) return error(res, resultado.error, 400);
+    return exito(res, resultado, 'Asignacion eliminada');
+  } catch (err) { next(err); }
+}
+
+async function promocionIndividual(req, res, next) {
+  try {
+    const resultado = await adminService.promocionIndividual(req.params.id, req.body.id_grado);
+    if (resultado.error) return error(res, resultado.error, 400);
+    return exito(res, resultado, 'Promocion individual realizada');
+  } catch (err) { next(err); }
+}
+
+async function promocionGrado(req, res, next) {
+  try {
+    const resultado = await adminService.promocionGrado(req.body.id_grado, req.body.anio_escolar);
+    if (resultado.error) return error(res, resultado.error, 400);
+    return exito(res, resultado, 'Promocion de grado realizada');
   } catch (err) { next(err); }
 }
 
 module.exports = {
-  listarMaestros, crearMaestro, cambiarEstadoMaestro,
-  listarGrupos, crearGrupo, asignarMaestro,
-  listarEstudiantes, crearEstudiante, cambiarEstadoEstudiante,
-  listarInscritos, matricularEstudiante, retirarEstudiante,
-  crearPadre, vincularPadreEstudiante,
+  listarMaestros,
+  crearMaestro,
+  toggleMaestro,
+  listarPadres,
+  obtenerPadre,
+  crearPadre,
+  listarEstudiantes,
+  crearEstudiante,
+  listarGrados,
+  listarMatriculas,
+  registrarFamilia,
+  crearMatricula,
+  crearAsignacion,
+  eliminarAsignacion,
+  promocionIndividual,
+  promocionGrado,
 };

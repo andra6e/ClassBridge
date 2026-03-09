@@ -1,209 +1,142 @@
 const { GoogleGenAI } = require('@google/genai');
 const logger = require('../utils/logger');
 const {
-  PadreEstudiante,
-  InscripcionGrupo,
-  SesionClase,
-  ContenidoClase,
+  ConversacionIA, MensajeIA, ContenidoClase, Matricula, Asistencia,
 } = require('../database');
 
-// ---------------------------------------------------------------------------
-// Instrucciones del sistema para el tutor IA
-// ---------------------------------------------------------------------------
 const INSTRUCCIONES_TUTOR = [
-  'Eres un tutor educativo que ayuda a estudiantes menores de edad.',
-  'Responde siempre en espanol.',
-  'Explica paso a paso, de forma simple, con ejemplos faciles.',
-  'No inventes informacion fuera del contenido proporcionado.',
-  'Si falta informacion, pide detalles al estudiante.',
+  'Eres un tutor educativo amigable que ayuda a estudiantes de primaria.',
+  'Responde siempre en español.',
+  'Usa el contenido de la clase proporcionado como base para tus explicaciones.',
+  'Explica paso a paso, de forma simple, con ejemplos fáciles de entender.',
+  'Si el estudiante no entiende, intenta explicar de otra manera.',
+  'No inventes información fuera del contenido proporcionado.',
+  'Mantén un tono motivador y paciente.',
 ].join(' ');
 
-// ---------------------------------------------------------------------------
-// Proveedores de IA
-// ---------------------------------------------------------------------------
-
-/**
- * Llama a Google Gemini usando el SDK oficial @google/genai.
- * Modelo configurable via GEMINI_MODEL, por defecto gemini-2.0-flash.
- */
-async function llamarGemini(promptCompleto) {
+async function llamarGemini(mensajes) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY no esta configurada en las variables de entorno');
-
-  const modelo = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-  const ai = new GoogleGenAI({ apiKey });
+  if (!apiKey) throw new Error('GEMINI_API_KEY no configurada en .env');
 
   try {
-    const respuesta = await ai.models.generateContent({
-      model: modelo,
-      contents: promptCompleto,
-      config: {
-        temperature: 0.7,
-        maxOutputTokens: 1024,
-      },
+    const ai = new GoogleGenAI({ apiKey });
+    const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const contents = mensajes.map((m) => ({
+      role: m.rol === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.contenido }],
+    }));
+
+    const response = await ai.models.generateContent({
+      model,
+      contents,
     });
 
-    const texto = respuesta.text;
-    if (!texto) throw new Error('Gemini no devolvio texto en la respuesta');
-    return texto;
+    return response.text;
   } catch (err) {
-    const mensajeError = err.message || String(err);
-    if (mensajeError.includes('429') || mensajeError.includes('RESOURCE_EXHAUSTED')) {
-      throw new Error('Cuota de Gemini agotada. Intenta de nuevo mas tarde o verifica tu plan en https://ai.google.dev');
-    }
-    if (mensajeError.includes('403') || mensajeError.includes('PERMISSION_DENIED')) {
-      throw new Error('API key de Gemini invalida o sin permisos. Verifica GEMINI_API_KEY en .env');
-    }
-    if (mensajeError.includes('404')) {
-      throw new Error(`Modelo "${modelo}" no disponible. Cambia GEMINI_MODEL en .env`);
-    }
-    throw err;
+    logger.error('Error llamando a Gemini', { status: err.status, message: err.message });
+    if (err.status === 429) throw new Error('Limite de solicitudes alcanzado, intenta mas tarde');
+    if (err.status === 403) throw new Error('Acceso denegado al servicio de IA');
+    if (err.status === 404) throw new Error('Modelo de IA no disponible');
+    throw new Error('Error al comunicarse con el servicio de IA');
   }
 }
 
-/**
- * Placeholder para OpenAI. Preparado para implementacion futura.
- * TODO: instalar openai SDK e implementar llamada real.
- */
-async function llamarOpenAI(_promptCompleto) {
-  logger.warn('Proveedor OpenAI no implementado todavia.');
-  return [
-    '[Proveedor OpenAI pendiente de implementacion]',
-    '',
-    'El sistema esta preparado para conectarse a OpenAI.',
-    'Configura IA_PROVIDER=gemini para usar Google Gemini,',
-    'o implementa la funcion llamarOpenAI() en ia.service.js.',
-  ].join('\n');
-}
-
-/**
- * Selecciona y llama al proveedor de IA configurado en IA_PROVIDER.
- * Retorna null si no hay proveedor configurado.
- */
-async function llamarProveedorIA(promptCompleto) {
-  const proveedor = (process.env.IA_PROVIDER || '').toLowerCase();
-
-  switch (proveedor) {
-    case 'gemini':
-      return llamarGemini(promptCompleto);
-    case 'openai':
-      return llamarOpenAI(promptCompleto);
-    default:
-      logger.warn(`Proveedor IA no configurado o desconocido: "${proveedor}"`);
-      return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Funcion principal del servicio
-// ---------------------------------------------------------------------------
-
-/**
- * Genera respuesta de chat IA educativo.
- *
- * Flujo:
- * 1. Valida vinculo padre-estudiante (padre_estudiante)
- * 2. Valida inscripcion del estudiante al grupo de la sesion (inscripciones_grupo)
- * 3. Carga contenido y adjuntos de la sesion (contenido_clase + adjuntos_contenido)
- * 4. Construye prompt educativo con contexto de la clase
- * 5. Llama al proveedor IA (Gemini / OpenAI / fallback)
- * 6. Retorna respuesta con metadatos del contexto usado
- */
-async function generarRespuestaChat({ id_padre, id_estudiante, id_sesion, mensaje }) {
-  // -- Validar vinculo padre-estudiante --
-  const vinculo = await PadreEstudiante.findOne({
+async function iniciarObtenerConversacion({ id_estudiante, id_contenido, id_padre }) {
+  const vinculo = await Matricula.findOne({
     where: { id_padre, id_estudiante },
   });
-  if (!vinculo) return { error: 'Estudiante no vinculado a tu cuenta' };
+  if (!vinculo) return { error: 'No tienes acceso a este estudiante' };
 
-  // -- Validar que la sesion existe y obtener grupo --
-  const sesion = await SesionClase.findByPk(id_sesion, {
-    include: [{ association: 'grupo', attributes: ['id_grupo', 'nombre', 'materia'] }],
+  const contenido = await ContenidoClase.findByPk(id_contenido, {
+    include: [{ association: 'materia' }, { association: 'grado' }],
   });
-  if (!sesion) return { error: 'Sesion no encontrada' };
+  if (!contenido) return { error: 'Contenido no encontrado' };
 
-  // -- Validar inscripcion del estudiante al grupo --
-  const inscripcion = await InscripcionGrupo.findOne({
-    where: { id_grupo: sesion.id_grupo, id_estudiante },
+  const matricula = await Matricula.findOne({
+    where: { id_estudiante, id_grado: contenido.id_grado, estado: 'activa' },
   });
-  if (!inscripcion) return { error: 'El estudiante no esta inscrito en el grupo de esta sesion' };
+  if (!matricula) return { error: 'El estudiante no pertenece a ese grado' };
 
-  // -- Cargar contenido de la sesion con adjuntos --
-  const contenido = await ContenidoClase.findOne({
-    where: { id_sesion },
-    include: [{
-      association: 'adjuntos',
-      attributes: ['nombre_archivo', 'tipo_archivo', 'url_archivo', 'texto_extraido'],
-    }],
+  const [conversacion] = await ConversacionIA.findOrCreate({
+    where: { id_estudiante, id_contenido },
+    defaults: { id_estudiante, id_contenido },
   });
-  if (!contenido) return { error: 'No hay contenido disponible para esta sesion' };
 
-  // -- Construir prompt educativo --
-  const partes = [
-    INSTRUCCIONES_TUTOR,
-    '',
-    'Tema de la clase:',
-    contenido.titulo,
-    '',
-    'Resumen:',
-    contenido.resumen,
-  ];
+  const mensajes = await MensajeIA.findAll({
+    where: { id_conversacion: conversacion.id_conversacion },
+    order: [['creado_en', 'ASC']],
+  });
 
-  if (contenido.notas_extra) {
-    partes.push('', 'Notas adicionales:', contenido.notas_extra);
-  }
-
-  if (contenido.adjuntos && contenido.adjuntos.length > 0) {
-    const textosExtraidos = contenido.adjuntos
-      .filter((a) => a.texto_extraido)
-      .map((a) => `[${a.nombre_archivo}]: ${a.texto_extraido}`);
-    if (textosExtraidos.length > 0) {
-      partes.push('', 'Material adicional:', ...textosExtraidos);
-    }
-  }
-
-  partes.push(
-    '',
-    'Pregunta del estudiante:',
-    mensaje,
-    '',
-    'Explica paso a paso, de forma simple, con ejemplos faciles. No inventes informacion fuera del contenido proporcionado.'
-  );
-
-  const promptCompleto = partes.join('\n');
-
-  // -- Llamar al proveedor de IA --
-  let textoRespuesta;
-  try {
-    textoRespuesta = await llamarProveedorIA(promptCompleto);
-  } catch (err) {
-    logger.error('Error al llamar proveedor IA', { mensaje: err.message });
-    return { error: `Error al generar respuesta de IA: ${err.message}` };
-  }
-
-  // Fallback si no hay proveedor configurado
-  if (!textoRespuesta) {
-    textoRespuesta = [
-      '[Sin proveedor IA configurado]',
-      '',
-      `Tema: ${contenido.titulo}`,
-      `Materia: ${sesion.grupo.materia || sesion.grupo.nombre}`,
-      '',
-      `Tu pregunta: "${mensaje}"`,
-      '',
-      'Configura IA_PROVIDER=gemini y GEMINI_API_KEY en el archivo .env para obtener respuestas reales.',
-    ].join('\n');
-  }
-
-  return {
-    respuesta: textoRespuesta,
-    contexto_usado: {
-      materia: sesion.grupo.materia || sesion.grupo.nombre,
-      tema: contenido.titulo,
-      fecha_sesion: sesion.fecha_sesion,
-      proveedor: (process.env.IA_PROVIDER || 'ninguno').toLowerCase(),
-    },
-  };
+  return { conversacion, mensajes, contenido };
 }
 
-module.exports = { generarRespuestaChat };
+async function enviarMensaje({ id_conversacion, mensaje, id_padre }) {
+  const conversacion = await ConversacionIA.findByPk(id_conversacion, {
+    include: [
+      { association: 'contenido', include: ['materia', 'grado'] },
+      { association: 'estudiante' },
+    ],
+  });
+  if (!conversacion) return { error: 'Conversacion no encontrada' };
+
+  const vinculo = await Matricula.findOne({
+    where: { id_padre, id_estudiante: conversacion.id_estudiante },
+  });
+  if (!vinculo) return { error: 'No tienes acceso a esta conversacion' };
+
+  await MensajeIA.create({
+    id_conversacion,
+    rol: 'user',
+    contenido: mensaje,
+  });
+
+  const historial = await MensajeIA.findAll({
+    where: { id_conversacion },
+    order: [['creado_en', 'ASC']],
+  });
+
+  const contenido = conversacion.contenido;
+  const contexto = [
+    INSTRUCCIONES_TUTOR,
+    '',
+    'Contenido de la clase:',
+    `Materia: ${contenido.materia?.nombre || 'Sin materia'}`,
+    `Tema: ${contenido.tema}`,
+    `Explicación: ${contenido.explicacion}`,
+    `Actividades: ${contenido.actividades || 'Ninguna'}`,
+  ].join('\n');
+
+  const mensajesParaIA = [
+    { rol: 'user', contenido: contexto },
+    { rol: 'assistant', contenido: 'Entendido. Estoy listo para ayudar al estudiante con este tema. ¿En qué puedo ayudarte?' },
+    ...historial.map((m) => ({ rol: m.rol, contenido: m.contenido })),
+  ];
+
+  const respuestaTexto = await llamarGemini(mensajesParaIA);
+
+  const mensajeGuardado = await MensajeIA.create({
+    id_conversacion,
+    rol: 'assistant',
+    contenido: respuestaTexto,
+  });
+
+  return { respuesta: respuestaTexto, mensaje_guardado: mensajeGuardado };
+}
+
+async function listarConversaciones(idEstudiante) {
+  return ConversacionIA.findAll({
+    where: { id_estudiante: idEstudiante },
+    include: [
+      { association: 'contenido', include: ['materia', 'grado'] },
+      { association: 'mensajes', limit: 1, order: [['creado_en', 'DESC']], separate: true },
+    ],
+    order: [['creado_en', 'DESC']],
+  });
+}
+
+module.exports = {
+  llamarGemini,
+  iniciarObtenerConversacion,
+  enviarMensaje,
+  listarConversaciones,
+};

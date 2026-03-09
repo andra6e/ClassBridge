@@ -1,31 +1,29 @@
 const sequelize = require('../config/db');
 
-const Escuela = require('../models/escuela.model')(sequelize);
 const Usuario = require('../models/usuario.model')(sequelize);
-const Padre = require('../models/padre.model')(sequelize);
+const Grado = require('../models/grado.model')(sequelize);
+const Materia = require('../models/materia.model')(sequelize);
 const Estudiante = require('../models/estudiante.model')(sequelize);
-const PadreEstudiante = require('../models/padre-estudiante.model')(sequelize);
-const GrupoClase = require('../models/grupo-clase.model')(sequelize);
-const InscripcionGrupo = require('../models/inscripcion-grupo.model')(sequelize);
-const SesionClase = require('../models/sesion-clase.model')(sequelize);
+const Matricula = require('../models/matricula.model')(sequelize);
+const AsignacionGrado = require('../models/asignacion-grado.model')(sequelize);
 const Asistencia = require('../models/asistencia.model')(sequelize);
 const ContenidoClase = require('../models/contenido-clase.model')(sequelize);
-const AdjuntoContenido = require('../models/adjunto-contenido.model')(sequelize);
-const JustificanteAusencia = require('../models/justificante-ausencia.model')(sequelize);
+const Justificante = require('../models/justificante.model')(sequelize);
+const ConversacionIA = require('../models/conversacion-ia.model')(sequelize);
+const MensajeIA = require('../models/mensaje-ia.model')(sequelize);
 
 const modelos = {
-  Escuela,
   Usuario,
-  Padre,
+  Grado,
+  Materia,
   Estudiante,
-  PadreEstudiante,
-  GrupoClase,
-  InscripcionGrupo,
-  SesionClase,
+  Matricula,
+  AsignacionGrado,
   Asistencia,
   ContenidoClase,
-  AdjuntoContenido,
-  JustificanteAusencia,
+  Justificante,
+  ConversacionIA,
+  MensajeIA,
 };
 
 Object.values(modelos).forEach((modelo) => {

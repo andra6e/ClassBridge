@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 
 class CargadorApp extends StatelessWidget {
   final String? mensaje;
@@ -11,16 +12,17 @@ class CargadorApp extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(),
-          if (mensaje != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              mensaje!,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: AppColors.primary.withValues(alpha: 0.7),
             ),
+          ),
+          if (mensaje != null) ...[
+            const SizedBox(height: 20),
+            Text(mensaje!, style: AppTextStyles.bodySm),
           ],
         ],
       ),

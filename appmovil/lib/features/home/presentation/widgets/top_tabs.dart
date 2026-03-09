@@ -13,8 +13,13 @@ class TopTabs extends StatelessWidget implements PreferredSizeWidget {
     return TabBar(
       controller: controlador,
       labelColor: Theme.of(context).colorScheme.primary,
-      unselectedLabelColor: Colors.grey,
-      indicatorColor: Theme.of(context).colorScheme.primary,
+      unselectedLabelColor: const Color(0xFF64748B),
+      indicator: BoxDecoration(
+        color: const Color(0xFFEAF2FF),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: Colors.transparent,
       labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
       tabs: const [
         Tab(text: 'Chat'),

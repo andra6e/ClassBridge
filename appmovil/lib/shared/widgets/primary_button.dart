@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 
 class BotonPrimario extends StatelessWidget {
   final String texto;
   final VoidCallback? onPressed;
   final bool cargando;
   final Color? color;
+  final IconData? icono;
 
   const BotonPrimario({
     super.key,
@@ -12,20 +14,23 @@ class BotonPrimario extends StatelessWidget {
     this.onPressed,
     this.cargando = false,
     this.color,
+    this.icono,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bg = color ?? AppColors.primary;
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 52,
       child: ElevatedButton(
         onPressed: cargando ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: color ?? Theme.of(context).colorScheme.primary,
+          backgroundColor: bg,
           foregroundColor: Colors.white,
+          disabledBackgroundColor: bg.withValues(alpha: 0.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
           ),
           elevation: 0,
         ),
@@ -33,17 +38,17 @@ class BotonPrimario extends StatelessWidget {
             ? const SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
               )
-            : Text(
-                texto,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icono != null) ...[
+                    Icon(icono, size: 20),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(texto, style: AppTextStyles.button.copyWith(color: Colors.white)),
+                ],
               ),
       ),
     );

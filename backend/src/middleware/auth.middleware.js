@@ -2,11 +2,6 @@ const jwt = require('jsonwebtoken');
 
 const ACCESS_SECRET = () => process.env.ACCESS_TOKEN_SECRET || 'classbridge_access_dev';
 
-/**
- * Verifica el token JWT en Authorization: Bearer <token>.
- * Coloca en req.usuario el payload decodificado:
- *   { id, rol, tipoActor: 'usuario'|'padre', id_escuela }
- */
 function autenticar(req, res, next) {
   const cabecera = req.headers.authorization;
   if (!cabecera || !cabecera.startsWith('Bearer ')) {

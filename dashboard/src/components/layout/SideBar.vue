@@ -1,26 +1,46 @@
 <script setup>
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import {
+  Home,
+  ClipboardList,
+  BookOpen,
+  Mail,
+  Users,
+  UserRound,
+  GraduationCap,
+  Layers,
+  FileText,
+  LogOut,
+} from 'lucide-vue-next'
 import { useAuthStore } from '../../store/auth.store'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 
-const enlaces = [
-  { nombre: 'Dashboard', ruta: '/dashboard', icono: '&#9632;' },
-  { nombre: 'Grupos', ruta: '/grupos', icono: '&#9654;' },
-  { nombre: 'Justificantes', ruta: '/justificantes', icono: '&#9998;' },
+const enlacesMaestro = [
+  { nombre: 'Mi Grado', ruta: '/dashboard', icono: Home },
+  { nombre: 'Asistencia', ruta: '/asistencia', icono: ClipboardList },
+  { nombre: 'Contenido', ruta: '/contenido', icono: BookOpen },
+  { nombre: 'Justificantes', ruta: '/justificantes', icono: Mail },
 ]
 
 const enlacesAdmin = [
-  { nombre: 'Administracion', ruta: '/admin', icono: '&#9881;' },
-  { nombre: 'Maestros', ruta: '/admin/maestros', icono: '&#9679;' },
-  { nombre: 'Grupos', ruta: '/admin/grupos', icono: '&#9679;' },
-  { nombre: 'Estudiantes', ruta: '/admin/estudiantes', icono: '&#9679;' },
-  { nombre: 'Matriculas', ruta: '/admin/matriculas', icono: '&#9679;' },
+  { nombre: 'Inicio', ruta: '/dashboard', icono: Home },
+  { nombre: 'Maestros', ruta: '/admin/maestros', icono: Users },
+  { nombre: 'Padres', ruta: '/admin/padres', icono: UserRound },
+  { nombre: 'Estudiantes', ruta: '/admin/estudiantes', icono: GraduationCap },
+  { nombre: 'Grados', ruta: '/admin/grados', icono: Layers },
+  { nombre: 'Matrículas', ruta: '/admin/matriculas', icono: FileText },
 ]
 
-const esAdmin = computed(() => auth.rolUsuario === 'admin')
+const enlaces = computed(() => auth.rolUsuario === 'admin' ? enlacesAdmin : enlacesMaestro)
+
+function esActivo(ruta) {
+  if (ruta === '/dashboard') return route.path === '/dashboard' || route.path === '/'
+  return route.path.startsWith(ruta)
+}
 
 function cerrarSesion() {
   auth.logout()
@@ -30,41 +50,43 @@ function cerrarSesion() {
 
 <template>
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <span class="logo-texto">ClassBridge</span>
-      <span class="logo-sub">Dashboard</span>
+    <div class="sidebar-marca">
+      <div class="marca-icono">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 10L12 5 2 10l10 5 10-5z"/>
+          <path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/>
+        </svg>
+      </div>
+      <div class="marca-texto">
+        <span class="marca-nombre">ClassBridge</span>
+        <span class="marca-rol">{{ auth.rolUsuario === 'admin' ? 'Administrador' : 'Maestro' }}</span>
+      </div>
     </div>
 
     <nav class="sidebar-nav">
+      <span class="nav-seccion">Menú principal</span>
       <router-link
         v-for="enlace in enlaces"
         :key="enlace.ruta"
         :to="enlace.ruta"
-        class="sidebar-enlace"
-        active-class="sidebar-enlace-activo"
+        class="nav-enlace"
+        :class="{ 'nav-enlace-activo': esActivo(enlace.ruta) }"
       >
-        <span class="enlace-icono" v-html="enlace.icono"></span>
-        {{ enlace.nombre }}
+        <component :is="enlace.icono" class="nav-icono" :size="19" :stroke-width="2.2" />
+        <span class="nav-texto">{{ enlace.nombre }}</span>
       </router-link>
-
-      <template v-if="esAdmin">
-        <div class="sidebar-separador"></div>
-        <router-link
-          v-for="enlace in enlacesAdmin"
-          :key="enlace.ruta"
-          :to="enlace.ruta"
-          class="sidebar-enlace"
-          active-class="sidebar-enlace-activo"
-        >
-          <span class="enlace-icono" v-html="enlace.icono"></span>
-          {{ enlace.nombre }}
-        </router-link>
-      </template>
     </nav>
 
     <div class="sidebar-pie">
-      <button class="btn-cerrar-sesion" @click="cerrarSesion">
-        Cerrar sesion
+      <div class="sidebar-usuario">
+        <div class="usuario-avatar">{{ auth.nombreUsuario?.charAt(0)?.toUpperCase() || 'U' }}</div>
+        <div class="usuario-info">
+          <span class="usuario-nombre">{{ auth.nombreUsuario }}</span>
+          <span class="usuario-rol">{{ auth.rolUsuario }}</span>
+        </div>
+      </div>
+      <button class="btn-salir" @click="cerrarSesion" title="Cerrar sesión">
+        <LogOut :size="18" :stroke-width="2.2" />
       </button>
     </div>
   </aside>
@@ -72,35 +94,54 @@ function cerrarSesion() {
 
 <style scoped>
 .sidebar {
-  width: 240px;
+  width: var(--sidebar-ancho);
   height: 100vh;
-  background: var(--gris-900);
-  color: white;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%);
   display: flex;
   flex-direction: column;
   position: fixed;
   left: 0;
   top: 0;
   z-index: 100;
+  border-right: 1px solid var(--gris-200);
 }
 
-.sidebar-logo {
-  padding: 24px 20px;
-  border-bottom: 1px solid var(--gris-700);
+.sidebar-marca {
+  padding: 20px 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--gris-100);
+}
+
+.marca-icono {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--primario);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.marca-texto {
   display: flex;
   flex-direction: column;
 }
 
-.logo-texto {
-  font-size: 1.25rem;
+.marca-nombre {
+  font-size: 1rem;
   font-weight: 700;
-  color: white;
+  color: var(--gris-900);
+  letter-spacing: -0.02em;
 }
 
-.logo-sub {
-  font-size: 0.75rem;
+.marca-rol {
+  font-size: 0.6875rem;
   color: var(--gris-400);
-  margin-top: 2px;
+  font-weight: 500;
+  text-transform: capitalize;
 }
 
 .sidebar-nav {
@@ -108,63 +149,126 @@ function cerrarSesion() {
   padding: 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  overflow-y: auto;
 }
 
-.sidebar-enlace {
+.nav-seccion {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--gris-400);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 8px;
+  margin-bottom: 8px;
+}
+
+.nav-enlace {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 6px;
-  color: var(--gris-300);
-  font-size: 0.9rem;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radio-sm);
+  color: #3f4c74;
+  font-size: 0.875rem;
   font-weight: 500;
   transition: all var(--transicion);
   text-decoration: none;
 }
 
-.sidebar-enlace:hover {
-  background: var(--gris-700);
-  color: white;
+.nav-enlace:hover {
+  background: #eef3ff;
+  color: #334077;
 }
 
-.sidebar-enlace-activo {
-  background: var(--primario);
-  color: white;
+.nav-enlace-activo {
+  background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.22);
 }
 
-.enlace-icono {
-  font-size: 1rem;
-  width: 20px;
-  text-align: center;
+.nav-enlace-activo:hover {
+  background: linear-gradient(90deg, #4338ca 0%, #4f46e5 100%);
+  color: #ffffff;
 }
 
-.sidebar-separador {
-  height: 1px;
-  background: var(--gris-700);
-  margin: 12px 0;
+.nav-icono {
+  width: 21px;
+  height: 21px;
+  flex-shrink: 0;
+  opacity: 0.95;
+}
+
+.nav-texto {
+  line-height: 1;
 }
 
 .sidebar-pie {
-  padding: 16px 12px;
-  border-top: 1px solid var(--gris-700);
+  padding: 12px 16px;
+  border-top: 1px solid var(--gris-100);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.btn-cerrar-sesion {
-  width: 100%;
-  padding: 10px;
-  background: transparent;
-  border: 1px solid var(--gris-600);
-  color: var(--gris-300);
+.sidebar-usuario {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.usuario-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--primario-claro);
+  color: var(--primario);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.usuario-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.usuario-nombre {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--gris-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.usuario-rol {
+  font-size: 0.6875rem;
+  color: var(--gris-400);
+  text-transform: capitalize;
+}
+
+.btn-salir {
+  background: none;
+  border: none;
+  color: var(--gris-400);
+  padding: 6px;
   border-radius: 6px;
-  font-size: 0.85rem;
   transition: all var(--transicion);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-cerrar-sesion:hover {
-  background: var(--peligro);
-  border-color: var(--peligro);
-  color: white;
+.btn-salir:hover {
+  background: var(--peligro-claro);
+  color: var(--peligro);
 }
 </style>

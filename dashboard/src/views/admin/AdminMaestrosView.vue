@@ -2,126 +2,219 @@
 import { ref, onMounted } from 'vue'
 import adminApi from '../../api/admin.api'
 import Boton from '../../components/ui/Boton.vue'
+import Input from '../../components/ui/Input.vue'
 import Modal from '../../components/ui/Modal.vue'
 
 const maestros = ref([])
 const cargando = ref(true)
-const error = ref('')
-const exito = ref('')
-
 const modalVisible = ref(false)
-const form = ref({ nombre_completo: '', correo: '', contrasena: '', telefono: '' })
 const guardando = ref(false)
+const alerta = ref({ tipo: '', mensaje: '' })
 
-async function cargar() {
-  cargando.value = true
-  error.value = ''
-  try {
-    const { data } = await adminApi.listarMaestros()
-    maestros.value = data.data
-  } catch (e) {
-    error.value = e.response?.data?.mensaje || 'Error al cargar maestros'
-  } finally {
-    cargando.value = false
-  }
+const form = ref({ nombre_completo: '', correo: '', contrasena: '', telefono: '' })
+const errores = ref({})
+
+function limpiarForm() {
+  form.value = { nombre_completo: '', correo: '', contrasena: '', telefono: '' }
+  errores.value = {}
 }
 
-async function crear() {
+function abrirModal() {
+  limpiarForm()
+  modalVisible.value = true
+}
+
+function mostrarAlerta(tipo, mensaje) {
+  alerta.value = { tipo, mensaje }
+  setTimeout(() => { alerta.value = { tipo: '', mensaje: '' } }, 4000)
+}
+
+function validar() {
+  const e = {}
+  if (!form.value.nombre_completo.trim()) e.nombre_completo = 'El nombre es obligatorio'
+  if (!form.value.correo.trim()) e.correo = 'El correo es obligatorio'
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.correo)) e.correo = 'Correo no válido'
+  if (!form.value.contrasena.trim()) e.contrasena = 'La contraseña es obligatoria'
+  else if (form.value.contrasena.length < 6) e.contrasena = 'Mínimo 6 caracteres'
+  errores.value = e
+  return Object.keys(e).length === 0
+}
+
+async function cargarMaestros() {
+  cargando.value = true
+  try {
+    const res = await adminApi.listarMaestros()
+    maestros.value = res.data.data || []
+  } catch {
+    mostrarAlerta('error', 'Error al cargar maestros')
+  }
+  cargando.value = false
+}
+
+async function crearMaestro() {
+  if (!validar()) return
   guardando.value = true
-  error.value = ''
   try {
     await adminApi.crearMaestro(form.value)
-    exito.value = 'Maestro creado'
     modalVisible.value = false
-    form.value = { nombre_completo: '', correo: '', contrasena: '', telefono: '' }
-    await cargar()
-  } catch (e) {
-    error.value = e.response?.data?.mensaje || 'Error al crear maestro'
-  } finally {
-    guardando.value = false
+    mostrarAlerta('exito', 'Maestro creado correctamente')
+    await cargarMaestros()
+  } catch (err) {
+    const msg = err.response?.data?.mensaje || 'Error al crear maestro'
+    mostrarAlerta('error', msg)
   }
+  guardando.value = false
 }
 
-async function toggleEstado(m) {
+async function toggleActivo(maestro) {
   try {
-    await adminApi.cambiarEstadoMaestro(m.id_usuario, !m.activo)
-    m.activo = !m.activo
-  } catch (e) {
-    error.value = e.response?.data?.mensaje || 'Error al cambiar estado'
+    await adminApi.toggleMaestro(maestro.id_usuario, !maestro.activo)
+    mostrarAlerta('exito', `Maestro ${maestro.activo ? 'desactivado' : 'activado'}`)
+    await cargarMaestros()
+  } catch {
+    mostrarAlerta('error', 'Error al cambiar estado')
   }
 }
 
-onMounted(cargar)
+function obtenerGrado(maestro) {
+  const asignaciones = maestro.asignaciones || []
+  const activa = asignaciones.find(a => a.activo)
+  return activa?.grado?.nombre || null
+}
+
+onMounted(cargarMaestros)
 </script>
 
 <template>
-  <div class="contenedor-pagina">
-    <div class="cabecera-flex">
-      <h1 class="titulo-pagina">Maestros</h1>
-      <Boton @click="modalVisible = true">Crear maestro</Boton>
+  <div>
+    <div class="cabecera-pagina">
+      <div>
+        <h1 class="titulo-pagina">Gestión de Maestros</h1>
+        <p class="subtitulo-pagina">Administra los maestros registrados en el sistema</p>
+      </div>
+      <Boton @click="abrirModal">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Nuevo Maestro
+      </Boton>
     </div>
 
-    <div v-if="exito" class="alerta alerta-exito">{{ exito }}</div>
-    <div v-if="error" class="alerta alerta-error">{{ error }}</div>
+    <div v-if="alerta.mensaje" class="alerta" :class="`alerta-${alerta.tipo}`">{{ alerta.mensaje }}</div>
 
-    <div v-if="cargando" class="cargando-centro"><div class="spinner spinner-grande"></div></div>
+    <div class="tarjeta tabla-card">
+      <div v-if="cargando" class="cargando-centro"><span class="spinner spinner-grande"></span></div>
 
-    <div v-else class="tarjeta tabla-contenedor">
-      <table class="tabla">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Correo</th>
-            <th>Telefono</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="m in maestros" :key="m.id_usuario">
-            <td>{{ m.nombre_completo }}</td>
-            <td>{{ m.correo }}</td>
-            <td>{{ m.telefono || '-' }}</td>
-            <td>
-              <span class="badge" :class="m.activo ? 'badge-activo' : 'badge-inactivo'">
-                {{ m.activo ? 'Activo' : 'Inactivo' }}
-              </span>
-            </td>
-            <td>
-              <Boton :variante="m.activo ? 'peligro' : 'exito'" tamano="sm" @click="toggleEstado(m)">
-                {{ m.activo ? 'Desactivar' : 'Activar' }}
-              </Boton>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="!maestros.length" class="mensaje-vacio">No hay maestros registrados.</div>
+      <template v-else-if="maestros.length">
+        <div class="tabla-contenedor">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Maestro</th>
+                <th>Correo</th>
+                <th>Teléfono</th>
+                <th>Grado asignado</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in maestros" :key="m.id_usuario">
+                <td>
+                  <div class="celda-usuario">
+                    <div class="avatar-sm">{{ m.nombre_completo?.charAt(0)?.toUpperCase() }}</div>
+                    <span class="celda-nombre">{{ m.nombre_completo }}</span>
+                  </div>
+                </td>
+                <td>{{ m.correo }}</td>
+                <td>{{ m.telefono || '—' }}</td>
+                <td>
+                  <span v-if="obtenerGrado(m)" class="badge badge-primario">{{ obtenerGrado(m) }}</span>
+                  <span v-else class="texto-secundario">Sin asignar</span>
+                </td>
+                <td>
+                  <span class="badge" :class="m.activo ? 'badge-activo' : 'badge-inactivo'">
+                    {{ m.activo ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td>
+                  <Boton
+                    :variante="m.activo ? 'fantasma' : 'exito'"
+                    tamano="sm"
+                    @click="toggleActivo(m)"
+                  >
+                    {{ m.activo ? 'Desactivar' : 'Activar' }}
+                  </Boton>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <div v-else class="vacio-estado">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gris-300)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+        </svg>
+        <p>No hay maestros registrados</p>
+      </div>
     </div>
 
-    <Modal :visible="modalVisible" titulo="Crear maestro" @cerrar="modalVisible = false">
-      <form class="form-modal" @submit.prevent="crear">
-        <div class="campo"><label class="campo-etiqueta">Nombre completo</label><input v-model="form.nombre_completo" class="campo-input" required /></div>
-        <div class="campo"><label class="campo-etiqueta">Correo</label><input v-model="form.correo" type="email" class="campo-input" required /></div>
-        <div class="campo"><label class="campo-etiqueta">Contrasena</label><input v-model="form.contrasena" type="password" class="campo-input" required minlength="6" /></div>
-        <div class="campo"><label class="campo-etiqueta">Telefono (opcional)</label><input v-model="form.telefono" class="campo-input" /></div>
-        <Boton :cargando="guardando" style="margin-top:12px">Crear</Boton>
+    <Modal :visible="modalVisible" titulo="Nuevo Maestro" @cerrar="modalVisible = false">
+      <form @submit.prevent="crearMaestro" class="form-modal">
+        <Input v-model="form.nombre_completo" etiqueta="Nombre completo" placeholder="Ej: Juan Pérez García" :error="errores.nombre_completo" />
+        <Input v-model="form.correo" etiqueta="Correo electrónico" tipo="email" placeholder="maestro@correo.com" :error="errores.correo" />
+        <Input v-model="form.contrasena" etiqueta="Contraseña" tipo="password" placeholder="Mínimo 6 caracteres" :error="errores.contrasena" />
+        <Input v-model="form.telefono" etiqueta="Teléfono (opcional)" placeholder="+504 0000-0000" />
+        <div class="form-acciones">
+          <Boton variante="secundario" @click="modalVisible = false" type="button">Cancelar</Boton>
+          <Boton type="submit" :cargando="guardando">Crear Maestro</Boton>
+        </div>
       </form>
     </Modal>
   </div>
 </template>
 
 <style scoped>
-.cabecera-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.tabla-contenedor { overflow-x: auto; }
-.tabla { width: 100%; border-collapse: collapse; }
-.tabla th { text-align: left; padding: 12px 16px; background: var(--gris-50); border-bottom: 2px solid var(--gris-200); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gris-500); font-weight: 600; }
-.tabla td { padding: 12px 16px; border-bottom: 1px solid var(--gris-100); font-size: 0.9rem; }
-.badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-.badge-activo { background: var(--exito-claro); color: var(--exito); }
-.badge-inactivo { background: var(--gris-100); color: var(--gris-500); }
-.form-modal { display: flex; flex-direction: column; gap: 14px; }
-.campo { display: flex; flex-direction: column; gap: 4px; }
-.campo-etiqueta { font-size: 0.85rem; font-weight: 600; color: var(--gris-700); }
-.campo-input { padding: 9px 12px; border: 1px solid var(--gris-300); border-radius: var(--radio); font-size: 0.9rem; outline: none; }
-.campo-input:focus { border-color: var(--primario); box-shadow: 0 0 0 3px var(--primario-claro); }
+.tabla-card { padding: 0; }
+.tabla-card .cargando-centro,
+.tabla-card .vacio-estado { padding: 64px 24px; }
+
+.vacio-estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--gris-400);
+  font-size: 0.875rem;
+}
+
+.celda-usuario {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--primario-claro);
+  color: var(--primario);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.badge-primario {
+  background: var(--primario-claro);
+  color: var(--primario);
+}
+
+.texto-secundario {
+  color: var(--gris-400);
+  font-size: 0.8125rem;
+}
 </style>

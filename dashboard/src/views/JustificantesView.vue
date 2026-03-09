@@ -2,26 +2,19 @@
 import { ref, onMounted } from 'vue'
 import justificantesApi from '../api/justificantes.api'
 import Boton from '../components/ui/Boton.vue'
-import Modal from '../components/ui/Modal.vue'
 
 const justificantes = ref([])
-const cargando = ref(true)
+const cargando = ref(false)
+const procesandoId = ref(null)
 const error = ref('')
 const exito = ref('')
 
-const modalVisible = ref(false)
-const justificanteActual = ref(null)
-const notasRevision = ref('')
-const procesando = ref(false)
-
-onMounted(cargarJustificantes)
-
-async function cargarJustificantes() {
+async function cargar() {
   cargando.value = true
   error.value = ''
   try {
-    const { data } = await justificantesApi.listarPendientes()
-    justificantes.value = data.data
+    const res = await justificantesApi.listarPendientes()
+    justificantes.value = res.data.data || []
   } catch (err) {
     error.value = err.response?.data?.mensaje || 'Error al cargar justificantes'
   } finally {
@@ -29,228 +22,225 @@ async function cargarJustificantes() {
   }
 }
 
-function abrirModal(justificante) {
-  justificanteActual.value = justificante
-  notasRevision.value = ''
-  modalVisible.value = true
-}
-
-function cerrarModal() {
-  modalVisible.value = false
-  justificanteActual.value = null
-}
-
-async function revisar(estado) {
-  procesando.value = true
-  exito.value = ''
+async function revisar(id, estado) {
+  procesandoId.value = id
   error.value = ''
-
+  exito.value = ''
   try {
-    await justificantesApi.revisar(
-      justificanteActual.value.id_justificante,
-      estado,
-      notasRevision.value.trim() || null
-    )
-    exito.value = `Justificante ${estado} correctamente`
-    cerrarModal()
-    await cargarJustificantes()
+    await justificantesApi.revisar(id, estado)
+    exito.value = estado === 'aprobado' ? 'Justificante aprobado' : 'Justificante rechazado'
+    await cargar()
   } catch (err) {
     error.value = err.response?.data?.mensaje || 'Error al procesar justificante'
   } finally {
-    procesando.value = false
+    procesandoId.value = null
   }
 }
 
 function formatearFecha(fecha) {
-  if (!fecha) return '-'
-  return new Date(fecha).toLocaleDateString('es-MX', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  if (!fecha) return ''
+  const d = new Date(fecha)
+  return d.toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+
+onMounted(cargar)
 </script>
 
 <template>
-  <div class="contenedor-pagina">
-    <h1 class="titulo-pagina">Justificantes pendientes</h1>
-
-    <div v-if="exito" class="alerta alerta-exito">{{ exito }}</div>
-    <div v-if="error && !cargando" class="alerta alerta-error">{{ error }}</div>
-
-    <div v-if="cargando" class="cargando-centro">
-      <div class="spinner spinner-grande"></div>
-    </div>
-
-    <div v-else-if="justificantes.length === 0" class="mensaje-vacio">
-      No hay justificantes pendientes de revision.
-    </div>
-
-    <div v-else class="justificantes-lista">
-      <div
-        v-for="j in justificantes"
-        :key="j.id_justificante"
-        class="justificante-tarjeta tarjeta"
-      >
-        <div class="j-cabecera">
-          <div>
-            <h3 class="j-estudiante">{{ j.estudiante || 'Estudiante' }}</h3>
-            <p class="j-fecha">{{ formatearFecha(j.creado_en) }}</p>
-          </div>
-          <span class="j-badge">Pendiente</span>
-        </div>
-
-        <div class="j-motivo">
-          <strong>Motivo:</strong> {{ j.motivo }}
-        </div>
-
-        <div v-if="j.url_adjunto" class="j-adjunto">
-          <a :href="j.url_adjunto" target="_blank" rel="noopener">Ver adjunto</a>
-        </div>
-
-        <div class="j-acciones">
-          <Boton variante="exito" tamano="sm" @click="abrirModal(j)">
-            Revisar
-          </Boton>
-        </div>
+  <div>
+    <div class="cabecera-pagina">
+      <div>
+        <h1 class="titulo-pagina">Justificantes Pendientes</h1>
+        <p class="subtitulo-pagina">Revisa y gestiona los justificantes enviados por los padres</p>
+      </div>
+      <div v-if="justificantes.length" class="contador-badge">
+        {{ justificantes.length }} pendiente{{ justificantes.length > 1 ? 's' : '' }}
       </div>
     </div>
 
-    <Modal :visible="modalVisible" titulo="Revisar justificante" @cerrar="cerrarModal">
-      <div v-if="justificanteActual" class="modal-revisar">
-        <p class="modal-info"><strong>Motivo:</strong> {{ justificanteActual.motivo }}</p>
+    <div v-if="error" class="alerta alerta-error">{{ error }}</div>
+    <div v-if="exito" class="alerta alerta-exito">{{ exito }}</div>
 
-        <div class="campo">
-          <label class="campo-etiqueta" for="notas-rev">Notas de revision (opcional)</label>
-          <textarea
-            id="notas-rev"
-            v-model="notasRevision"
-            class="campo-textarea"
-            placeholder="Observaciones sobre la revision..."
-            rows="3"
-          ></textarea>
+    <div v-if="cargando" class="cargando-centro"><span class="spinner spinner-grande"></span></div>
+
+    <div v-else-if="justificantes.length === 0" class="tarjeta vacio-estado">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--gris-300)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <path d="M22 4L12 14.01l-3-3"/>
+      </svg>
+      <p style="font-weight: 500;">No hay justificantes pendientes</p>
+      <span style="font-size: 0.75rem;">Los justificantes aparecerán aquí cuando los padres los envíen</span>
+    </div>
+
+    <div v-else class="lista-justificantes">
+      <div
+        v-for="just in justificantes"
+        :key="just.id_justificante"
+        class="justificante-card"
+      >
+        <div class="just-izq">
+          <div class="just-avatar">
+            {{ (just.estudiante?.nombre_completo || just.asistencia?.estudiante?.nombre_completo || 'E')?.charAt(0)?.toUpperCase() }}
+          </div>
+          <div class="just-info">
+            <h3 class="just-nombre">{{ just.estudiante?.nombre_completo || just.asistencia?.estudiante?.nombre_completo || 'Estudiante' }}</h3>
+            <div class="just-meta">
+              <span class="just-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+                {{ formatearFecha(just.fecha || just.asistencia?.fecha) }}
+              </span>
+              <span class="just-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                </svg>
+                {{ just.padre?.nombre_completo || just.emisor?.nombre_completo || 'Padre' }}
+              </span>
+            </div>
+            <div class="just-motivo">
+              <span class="motivo-label">Motivo:</span>
+              {{ just.motivo }}
+            </div>
+          </div>
         </div>
-
-        <div class="modal-botones">
+        <div class="just-acciones">
           <Boton
             variante="exito"
-            tamano="md"
-            :cargando="procesando"
-            @click="revisar('aprobado')"
+            tamano="sm"
+            :cargando="procesandoId === just.id_justificante"
+            :deshabilitado="procesandoId !== null"
+            @click="revisar(just.id_justificante, 'aprobado')"
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
             Aprobar
           </Boton>
           <Boton
-            variante="peligro"
-            tamano="md"
-            :cargando="procesando"
-            @click="revisar('rechazado')"
+            variante="fantasma"
+            tamano="sm"
+            :cargando="procesandoId === just.id_justificante"
+            :deshabilitado="procesandoId !== null"
+            @click="revisar(just.id_justificante, 'rechazado')"
           >
             Rechazar
           </Boton>
         </div>
       </div>
-    </Modal>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.justificantes-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.contador-badge {
+  background: var(--advertencia-claro);
+  color: #92400e;
+  padding: 4px 12px;
+  border-radius: var(--radio-full);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
-.justificante-tarjeta {
+.vacio-estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--gris-400);
+  font-size: 0.875rem;
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.lista-justificantes {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.j-cabecera {
+.justificante-card {
+  background: white;
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio);
+  padding: 20px;
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  transition: all var(--transicion);
 }
 
-.j-estudiante {
-  font-size: 1rem;
+.justificante-card:hover {
+  border-color: var(--gris-300);
+  box-shadow: var(--sombra);
+}
+
+.just-izq {
+  display: flex;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.just-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  flex-shrink: 0;
+}
+
+.just-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.just-nombre {
+  font-size: 0.9375rem;
   font-weight: 600;
+  color: var(--gris-900);
+  margin-bottom: 4px;
 }
 
-.j-fecha {
-  font-size: 0.8rem;
-  color: var(--gris-400);
-  margin-top: 2px;
+.just-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
-.j-badge {
-  padding: 3px 10px;
-  border-radius: 20px;
+.just-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.75rem;
-  font-weight: 600;
-  background: var(--advertencia-claro);
-  color: var(--advertencia);
+  color: var(--gris-500);
 }
 
-.j-motivo {
-  font-size: 0.9rem;
+.just-motivo {
+  font-size: 0.8125rem;
   color: var(--gris-600);
   line-height: 1.5;
 }
 
-.j-adjunto a {
-  color: var(--primario);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.j-acciones {
-  display: flex;
-  gap: 8px;
-}
-
-.modal-revisar {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.modal-info {
-  font-size: 0.9rem;
-  color: var(--gris-600);
-}
-
-.campo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.campo-etiqueta {
-  font-size: 0.85rem;
+.motivo-label {
   font-weight: 600;
   color: var(--gris-700);
 }
 
-.campo-textarea {
-  padding: 10px 14px;
-  border: 1px solid var(--gris-300);
-  border-radius: var(--radio);
-  font-size: 0.95rem;
-  outline: none;
-  resize: vertical;
-  min-height: 80px;
-}
-
-.campo-textarea:focus {
-  border-color: var(--primario);
-  box-shadow: 0 0 0 3px var(--primario-claro);
-}
-
-.modal-botones {
+.just-acciones {
   display: flex;
-  gap: 12px;
-  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .justificante-card { flex-direction: column; }
+  .just-acciones { width: 100%; }
 }
 </style>

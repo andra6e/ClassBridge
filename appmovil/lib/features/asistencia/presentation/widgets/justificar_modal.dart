@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/primary_button.dart';
 
 class JustificarModal extends StatefulWidget {
@@ -50,12 +51,16 @@ class _JustificarModalState extends State<JustificarModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        left: 24,
+        right: 24,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -66,54 +71,55 @@ class _JustificarModalState extends State<JustificarModal> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Enviar justificante',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Fecha: ${widget.fecha}',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          Text('Enviar justificante', style: AppTextStyles.heading3),
+          const SizedBox(height: 6),
+          Text('Fecha: ${widget.fecha}', style: AppTextStyles.caption),
+          const SizedBox(height: 20),
           if (_error != null) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.shade200),
+                color: AppColors.errorSoft,
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
               ),
-              child: Text(
-                _error!,
-                style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, size: 18, color: AppColors.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(_error!, style: AppTextStyles.bodySm.copyWith(color: AppColors.error)),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
           ],
+          Text('MOTIVO', style: AppTextStyles.label),
+          const SizedBox(height: 8),
           TextField(
             controller: _motivoCtrl,
             maxLines: 3,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'Motivo de la ausencia',
-              hintText: 'Describe el motivo...',
-              border: OutlineInputBorder(),
+            style: AppTextStyles.body,
+            decoration: InputDecoration(
+              hintText: 'Describe el motivo de la ausencia...',
+              hintStyle: AppTextStyles.body.copyWith(color: AppColors.textTertiary),
               alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           BotonPrimario(
             texto: 'Enviar justificante',
             cargando: _enviando,
             onPressed: _enviar,
+            icono: Icons.send_rounded,
           ),
         ],
       ),

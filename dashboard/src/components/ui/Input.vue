@@ -39,18 +39,24 @@ function onInput(e) {
 }
 
 .campo-etiqueta {
-  font-size: 0.85rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--gris-700);
 }
 
 .campo-input {
-  padding: 10px 14px;
+  padding: 9px 12px;
   border: 1px solid var(--gris-300);
-  border-radius: var(--radio);
-  font-size: 0.95rem;
+  background: white;
+  border-radius: var(--radio-sm);
+  font-size: 0.875rem;
   outline: none;
-  transition: border-color var(--transicion);
+  transition: border-color var(--transicion), box-shadow var(--transicion);
+  color: var(--gris-800);
+}
+
+.campo-input::placeholder {
+  color: var(--gris-400);
 }
 
 .campo-input:focus {
@@ -61,6 +67,7 @@ function onInput(e) {
 .campo-input:disabled {
   background: var(--gris-100);
   cursor: not-allowed;
+  color: var(--gris-500);
 }
 
 .campo-input-error {
@@ -72,7 +79,8 @@ function onInput(e) {
 }
 
 .campo-error {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--peligro);
+  font-weight: 500;
 }
 </style>

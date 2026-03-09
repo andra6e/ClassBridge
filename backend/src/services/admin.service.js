@@ -1,253 +1,247 @@
-const { Op } = require('sequelize');
+const logger = require('../utils/logger');
 const { hashear } = require('../utils/hash');
 const {
-  Usuario,
-  GrupoClase,
-  Estudiante,
-  InscripcionGrupo,
-  Padre,
-  PadreEstudiante,
+  Usuario, Estudiante, Grado, Matricula, AsignacionGrado,
 } = require('../database');
 
-// ───────────────── MAESTROS ─────────────────
-
-async function listarMaestros(idEscuela) {
+async function listarMaestros() {
   return Usuario.findAll({
-    where: { id_escuela: idEscuela, rol: 'maestro' },
+    where: { rol: 'maestro' },
     attributes: { exclude: ['hash_contrasena'] },
-    order: [['nombre_completo', 'ASC']],
+    include: [{ association: 'asignaciones', include: ['grado'] }],
   });
 }
 
-async function crearMaestro(idEscuela, datos) {
-  const existente = await Usuario.findOne({ where: { correo: datos.correo } });
-  if (existente) return { error: 'Ya existe un usuario con ese correo' };
+async function crearMaestro(datos) {
+  const existe = await Usuario.findOne({ where: { correo: datos.correo } });
+  if (existe) return { error: 'Ya existe un usuario con ese correo' };
 
-  const hash = await hashear(datos.contrasena);
+  const hash_contrasena = await hashear(datos.contrasena);
   const maestro = await Usuario.create({
-    id_escuela: idEscuela,
     nombre_completo: datos.nombre_completo,
     correo: datos.correo,
-    hash_contrasena: hash,
+    hash_contrasena,
     rol: 'maestro',
     telefono: datos.telefono || null,
   });
 
-  const { hash_contrasena, ...sinHash } = maestro.toJSON();
-  return { maestro: sinHash };
+  const { hash_contrasena: _, ...sinHash } = maestro.toJSON();
+  return sinHash;
 }
 
-async function cambiarEstadoMaestro(idEscuela, idUsuario, activo) {
-  const maestro = await Usuario.findOne({
-    where: { id_usuario: idUsuario, id_escuela: idEscuela, rol: 'maestro' },
-  });
-  if (!maestro) return { error: 'Maestro no encontrado en tu escuela' };
+async function toggleMaestro(idUsuario, activo) {
+  const maestro = await Usuario.findOne({ where: { id_usuario: idUsuario, rol: 'maestro' } });
+  if (!maestro) return { error: 'Maestro no encontrado' };
+
   await maestro.update({ activo });
-  return { maestro: { id_usuario: maestro.id_usuario, activo: maestro.activo } };
+  return { id_usuario: maestro.id_usuario, activo: maestro.activo };
 }
 
-// ───────────────── GRUPOS ─────────────────
+async function listarPadres() {
+  return Usuario.findAll({
+    where: { rol: 'padre' },
+    attributes: { exclude: ['hash_contrasena'] },
+  });
+}
 
-async function listarGrupos(idEscuela) {
-  return GrupoClase.findAll({
-    where: { id_escuela: idEscuela },
+async function obtenerPadre(idUsuario) {
+  const padre = await Usuario.findOne({
+    where: { id_usuario: idUsuario, rol: 'padre' },
+    attributes: { exclude: ['hash_contrasena'] },
     include: [{
-      association: 'maestro',
-      attributes: ['id_usuario', 'nombre_completo', 'correo'],
-    }],
-    order: [['nombre', 'ASC']],
-  });
-}
-
-async function crearGrupo(idEscuela, datos) {
-  const maestro = await Usuario.findOne({
-    where: { id_usuario: datos.id_maestro, id_escuela: idEscuela, rol: 'maestro' },
-  });
-  if (!maestro) return { error: 'Maestro no encontrado o no pertenece a tu escuela' };
-
-  const grupo = await GrupoClase.create({
-    id_escuela: idEscuela,
-    nombre: datos.nombre,
-    materia: datos.materia || null,
-    nivel_grado: datos.nivel_grado || null,
-    anio_escolar: datos.anio_escolar || null,
-    id_maestro: datos.id_maestro,
-  });
-
-  return { grupo };
-}
-
-async function asignarMaestro(idEscuela, idGrupo, idMaestro) {
-  const grupo = await GrupoClase.findOne({
-    where: { id_grupo: idGrupo, id_escuela: idEscuela },
-  });
-  if (!grupo) return { error: 'Grupo no encontrado en tu escuela' };
-
-  const maestro = await Usuario.findOne({
-    where: { id_usuario: idMaestro, id_escuela: idEscuela, rol: 'maestro' },
-  });
-  if (!maestro) return { error: 'Maestro no encontrado o no pertenece a tu escuela' };
-
-  await grupo.update({ id_maestro: idMaestro });
-  return { grupo };
-}
-
-// ───────────────── ESTUDIANTES ─────────────────
-
-async function listarEstudiantes(idEscuela, busqueda) {
-  const where = { id_escuela: idEscuela };
-  if (busqueda) {
-    where[Op.or] = [
-      { nombre_completo: { [Op.like]: `%${busqueda}%` } },
-      { codigo_matricula: { [Op.like]: `%${busqueda}%` } },
-    ];
-  }
-  return Estudiante.findAll({ where, order: [['nombre_completo', 'ASC']] });
-}
-
-async function crearEstudiante(idEscuela, datos) {
-  const estudiante = await Estudiante.create({
-    id_escuela: idEscuela,
-    nombre_completo: datos.nombre_completo,
-    codigo_matricula: datos.codigo_matricula || null,
-    fecha_nacimiento: datos.fecha_nacimiento || null,
-    sexo: datos.sexo || null,
-    nivel_grado: datos.nivel_grado || null,
-  });
-  return { estudiante };
-}
-
-async function cambiarEstadoEstudiante(idEscuela, idEstudiante, activo) {
-  const est = await Estudiante.findOne({
-    where: { id_estudiante: idEstudiante, id_escuela: idEscuela },
-  });
-  if (!est) return { error: 'Estudiante no encontrado en tu escuela' };
-  await est.update({ activo });
-  return { estudiante: { id_estudiante: est.id_estudiante, activo: est.activo } };
-}
-
-// ───────────────── MATRICULAS ─────────────────
-
-async function listarInscritos(idEscuela, idGrupo) {
-  const grupo = await GrupoClase.findOne({
-    where: { id_grupo: idGrupo, id_escuela: idEscuela },
-  });
-  if (!grupo) return { error: 'Grupo no encontrado en tu escuela' };
-
-  const inscritos = await InscripcionGrupo.findAll({
-    where: { id_grupo: idGrupo, retirado_en: null },
-    include: [{
-      model: Estudiante,
-      as: 'estudiante',
-      attributes: ['id_estudiante', 'nombre_completo', 'codigo_matricula', 'nivel_grado', 'activo'],
+      association: 'matriculasComoPadre',
+      where: { estado: 'activa' },
+      required: false,
+      include: ['estudiante', 'grado'],
     }],
   });
-  return { inscritos };
+  if (!padre) return { error: 'Padre no encontrado' };
+  return padre;
 }
 
-async function matricularEstudiante(idEscuela, idGrupo, idEstudiante) {
-  const grupo = await GrupoClase.findOne({
-    where: { id_grupo: idGrupo, id_escuela: idEscuela },
-  });
-  if (!grupo) return { error: 'Grupo no encontrado en tu escuela' };
+async function crearPadre(datos) {
+  const existe = await Usuario.findOne({ where: { correo: datos.correo } });
+  if (existe) return { error: 'Ya existe un usuario con ese correo' };
 
-  const est = await Estudiante.findOne({
-    where: { id_estudiante: idEstudiante, id_escuela: idEscuela },
-  });
-  if (!est) return { error: 'Estudiante no encontrado en tu escuela' };
-
-  const existente = await InscripcionGrupo.findOne({
-    where: { id_grupo: idGrupo, id_estudiante: idEstudiante, retirado_en: null },
-  });
-  if (existente) return { error: 'El estudiante ya esta inscrito en este grupo' };
-
-  const retirado = await InscripcionGrupo.findOne({
-    where: { id_grupo: idGrupo, id_estudiante: idEstudiante },
-  });
-  if (retirado) {
-    await retirado.update({ retirado_en: null, inscrito_en: new Date() });
-    return { inscripcion: retirado };
-  }
-
-  const inscripcion = await InscripcionGrupo.create({
-    id_grupo: idGrupo,
-    id_estudiante: idEstudiante,
-  });
-  return { inscripcion };
-}
-
-async function retirarEstudiante(idEscuela, idGrupo, idEstudiante) {
-  const grupo = await GrupoClase.findOne({
-    where: { id_grupo: idGrupo, id_escuela: idEscuela },
-  });
-  if (!grupo) return { error: 'Grupo no encontrado en tu escuela' };
-
-  const inscripcion = await InscripcionGrupo.findOne({
-    where: { id_grupo: idGrupo, id_estudiante: idEstudiante, retirado_en: null },
-  });
-  if (!inscripcion) return { error: 'El estudiante no esta inscrito en este grupo' };
-
-  await inscripcion.update({ retirado_en: new Date() });
-  return { inscripcion };
-}
-
-// ───────────────── PADRES ─────────────────
-
-async function crearPadre(idEscuela, datos) {
-  const existente = await Padre.findOne({ where: { correo: datos.correo } });
-  if (existente) return { error: 'Ya existe un padre con ese correo' };
-
-  const hash = await hashear(datos.contrasena);
-  const padre = await Padre.create({
-    id_escuela: idEscuela,
+  const hash_contrasena = await hashear(datos.contrasena);
+  const padre = await Usuario.create({
     nombre_completo: datos.nombre_completo,
     correo: datos.correo,
-    hash_contrasena: hash,
+    hash_contrasena,
+    rol: 'padre',
     telefono: datos.telefono || null,
   });
 
-  const { hash_contrasena, ...sinHash } = padre.toJSON();
-  return { padre: sinHash };
+  const { hash_contrasena: _, ...sinHash } = padre.toJSON();
+  return sinHash;
 }
 
-async function vincularPadreEstudiante(idEscuela, datos) {
-  const padre = await Padre.findOne({
-    where: { id_padre: datos.id_padre, id_escuela: idEscuela },
+async function listarEstudiantes() {
+  return Estudiante.findAll({
+    include: [{ association: 'matriculas', include: ['padre', 'grado'] }],
   });
-  if (!padre) return { error: 'Padre no encontrado en tu escuela' };
+}
 
-  const est = await Estudiante.findOne({
-    where: { id_estudiante: datos.id_estudiante, id_escuela: idEscuela },
-  });
-  if (!est) return { error: 'Estudiante no encontrado en tu escuela' };
+async function crearEstudiante(datos) {
+  return Estudiante.create(datos);
+}
 
-  const existente = await PadreEstudiante.findOne({
-    where: { id_padre: datos.id_padre, id_estudiante: datos.id_estudiante },
+async function listarGrados() {
+  return Grado.findAll({
+    order: [['orden', 'ASC']],
+    include: [{
+      association: 'asignaciones',
+      where: { activo: true },
+      required: false,
+      include: [{ association: 'maestro', attributes: ['id_usuario', 'nombre_completo', 'correo'] }],
+    }],
   });
-  if (existente) return { error: 'Este vinculo ya existe' };
+}
 
-  const vinculo = await PadreEstudiante.create({
-    id_padre: datos.id_padre,
-    id_estudiante: datos.id_estudiante,
-    relacion: datos.relacion || 'padre',
-    es_principal: datos.es_principal || false,
+async function listarMatriculas(anio_escolar) {
+  const where = anio_escolar ? { anio_escolar } : {};
+  return Matricula.findAll({
+    where,
+    include: [
+      { association: 'padre', attributes: { exclude: ['hash_contrasena'] } },
+      'estudiante',
+      'grado',
+    ],
   });
-  return { vinculo };
+}
+
+async function registrarFamilia(datos) {
+  const resultadoPadre = await crearPadre(datos.padre);
+  if (resultadoPadre.error) return resultadoPadre;
+
+  const idPadre = resultadoPadre.id_usuario;
+  const anioEscolar = datos.anio_escolar;
+  const estudiantesCreados = [];
+  const matriculasCreadas = [];
+
+  for (const est of datos.estudiantes) {
+    const estudiante = await Estudiante.create({
+      nombre_completo: est.nombre_completo,
+      fecha_nacimiento: est.fecha_nacimiento || null,
+      sexo: est.sexo || null,
+    });
+
+    const matricula = await Matricula.create({
+      id_padre: idPadre,
+      id_estudiante: estudiante.id_estudiante,
+      id_grado: est.id_grado,
+      anio_escolar: anioEscolar,
+    });
+
+    estudiantesCreados.push(estudiante);
+    matriculasCreadas.push(await Matricula.findByPk(matricula.id_matricula, {
+      include: [
+        { association: 'padre', attributes: { exclude: ['hash_contrasena'] } },
+        'estudiante',
+        'grado',
+      ],
+    }));
+  }
+
+  return {
+    padre: resultadoPadre,
+    estudiantes: estudiantesCreados,
+    matriculas: matriculasCreadas,
+  };
+}
+
+async function crearMatricula(datos) {
+  const existente = await Matricula.findOne({
+    where: {
+      id_estudiante: datos.id_estudiante,
+      anio_escolar: datos.anio_escolar,
+      estado: 'activa',
+    },
+  });
+  if (existente) return { error: 'El estudiante ya esta matriculado en ese anio escolar' };
+
+  const matricula = await Matricula.create(datos);
+  return Matricula.findByPk(matricula.id_matricula, {
+    include: ['padre', 'estudiante', 'grado'],
+  });
+}
+
+async function crearAsignacion(datos) {
+  const existente = await AsignacionGrado.findOne({
+    where: {
+      id_grado: datos.id_grado,
+      anio_escolar: datos.anio_escolar,
+      activo: true,
+    },
+  });
+  if (existente) return { error: 'El grado ya tiene un maestro asignado para ese anio' };
+
+  const asignacion = await AsignacionGrado.create(datos);
+  return AsignacionGrado.findByPk(asignacion.id_asignacion, {
+    include: ['maestro', 'grado'],
+  });
+}
+
+async function eliminarAsignacion(idAsignacion) {
+  const asignacion = await AsignacionGrado.findByPk(idAsignacion);
+  if (!asignacion) return { error: 'Asignacion no encontrada' };
+
+  await asignacion.destroy();
+  return { eliminado: true };
+}
+
+async function promocionIndividual(idMatricula, nuevoIdGrado) {
+  const matricula = await Matricula.findByPk(idMatricula);
+  if (!matricula) return { error: 'Matricula no encontrada' };
+
+  await matricula.update({ id_grado: nuevoIdGrado });
+  return Matricula.findByPk(idMatricula, {
+    include: ['padre', 'estudiante', 'grado'],
+  });
+}
+
+async function promocionGrado(idGradoOrigen, anio_escolar) {
+  const gradoOrigen = await Grado.findByPk(idGradoOrigen);
+  if (!gradoOrigen) return { error: 'Grado origen no encontrado' };
+
+  const matriculas = await Matricula.findAll({
+    where: { id_grado: idGradoOrigen, anio_escolar, estado: 'activa' },
+  });
+  if (!matriculas.length) return { error: 'No hay matriculas activas para ese grado y anio' };
+
+  const gradoSiguiente = await Grado.findOne({
+    where: { orden: gradoOrigen.orden + 1 },
+  });
+
+  let count = 0;
+  for (const mat of matriculas) {
+    if (!gradoSiguiente) {
+      await mat.update({ estado: 'graduada' });
+    } else {
+      await mat.update({ id_grado: gradoSiguiente.id_grado });
+    }
+    count++;
+  }
+
+  logger.info('Promocion de grado completada', { idGradoOrigen, count, graduados: !gradoSiguiente });
+  return { promovidos: count, graduados: !gradoSiguiente };
 }
 
 module.exports = {
   listarMaestros,
   crearMaestro,
-  cambiarEstadoMaestro,
-  listarGrupos,
-  crearGrupo,
-  asignarMaestro,
+  registrarFamilia,
+  toggleMaestro,
+  listarPadres,
+  obtenerPadre,
+  crearPadre,
   listarEstudiantes,
   crearEstudiante,
-  cambiarEstadoEstudiante,
-  listarInscritos,
-  matricularEstudiante,
-  retirarEstudiante,
-  crearPadre,
-  vincularPadreEstudiante,
+  listarGrados,
+  listarMatriculas,
+  crearMatricula,
+  crearAsignacion,
+  eliminarAsignacion,
+  promocionIndividual,
+  promocionGrado,
 };

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/primary_button.dart';
 import '../data/asistencia_models.dart';
 import '../data/asistencia_repository.dart';
@@ -14,11 +15,9 @@ class DetalleDiaScreen extends StatelessWidget {
     final resultado = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => JustificarModal(
-        fecha: asistencia.fechaFormateada,
+        fecha: asistencia.fecha,
         onEnviar: (motivo) => repo.enviarJustificante(
           idAsistencia: asistencia.idAsistencia,
           motivo: motivo,
@@ -28,9 +27,11 @@ class DetalleDiaScreen extends StatelessWidget {
 
     if (resultado == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Justificante enviado correctamente'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: const Text('Justificante enviado correctamente'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       Navigator.of(context).pop(true);
@@ -39,49 +40,83 @@ class DetalleDiaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final esPresente = asistencia.estado == 'presente';
+    final color = esPresente ? AppColors.success : AppColors.error;
+    final bgColor = esPresente ? AppColors.successSoft : AppColors.errorSoft;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle del dia')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text('Detalle del dia', style: AppTextStyles.heading3),
+        backgroundColor: AppColors.surface,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _fila('Fecha', asistencia.fechaFormateada),
-                    const SizedBox(height: 10),
-                    _fila('Materia', asistencia.materiaGrupo),
-                    const SizedBox(height: 10),
-                    _fila('Estado', _textoEstado(asistencia.estado)),
-                    if (asistencia.notas != null) ...[
-                      const SizedBox(height: 10),
-                      _fila('Notas', asistencia.notas!),
-                    ],
-                    if (asistencia.tieneJustificante) ...[
-                      const Divider(height: 24),
-                      const Text(
-                        'Justificante enviado',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                boxShadow: AppShadows.soft,
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      esPresente ? Icons.check_rounded : Icons.close_rounded,
+                      color: color,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    esPresente ? 'Presente' : 'Ausente',
+                    style: AppTextStyles.heading3.copyWith(color: color),
+                  ),
+                  const SizedBox(height: 20),
+                  _fila('Fecha', asistencia.fecha),
+                  const SizedBox(height: 12),
+                  _fila('Grado', asistencia.gradoNombre ?? '-'),
+                  if (asistencia.tieneJustificante) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Divider(color: AppColors.borderLight, height: 1),
+                    ),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                       ),
-                      const SizedBox(height: 8),
-                      _fila('Motivo', asistencia.justificante!.motivo),
-                      const SizedBox(height: 6),
-                      _fila('Estado', asistencia.justificante!.estado),
-                      if (asistencia.justificante!.notasRevision != null) ...[
-                        const SizedBox(height: 6),
-                        _fila('Notas revision',
-                            asistencia.justificante!.notasRevision!),
-                      ],
-                    ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.description_outlined, size: 18, color: AppColors.warning),
+                              const SizedBox(width: 8),
+                              Text('Justificante enviado', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.warning)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _fila('Motivo', asistencia.justificante!.motivo),
+                          const SizedBox(height: 6),
+                          _fila('Estado', asistencia.justificante!.estado),
+                        ],
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
             const Spacer(),
@@ -89,7 +124,8 @@ class DetalleDiaScreen extends StatelessWidget {
               BotonPrimario(
                 texto: 'Enviar justificante',
                 onPressed: () => _abrirModalJustificante(context),
-                color: Colors.orange,
+                color: AppColors.warning,
+                icono: Icons.edit_document,
               ),
           ],
         ),
@@ -102,32 +138,11 @@ class DetalleDiaScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 110,
-          child: Text(
-            etiqueta,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-            ),
-          ),
+          width: 100,
+          child: Text(etiqueta, style: AppTextStyles.label),
         ),
-        Expanded(child: Text(valor)),
+        Expanded(child: Text(valor, style: AppTextStyles.body)),
       ],
     );
-  }
-
-  String _textoEstado(String estado) {
-    switch (estado) {
-      case 'presente':
-        return 'Presente';
-      case 'ausente':
-        return 'Ausente';
-      case 'tarde':
-        return 'Tarde';
-      case 'justificado':
-        return 'Justificado';
-      default:
-        return estado;
-    }
   }
 }

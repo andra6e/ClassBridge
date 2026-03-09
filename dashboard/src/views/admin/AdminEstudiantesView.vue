@@ -1,134 +1,198 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import adminApi from '../../api/admin.api'
-import Boton from '../../components/ui/Boton.vue'
-import Modal from '../../components/ui/Modal.vue'
 
 const estudiantes = ref([])
+const grados = ref([])
 const cargando = ref(true)
-const error = ref('')
-const exito = ref('')
-const busqueda = ref('')
+const alerta = ref({ tipo: '', mensaje: '' })
+const filtroGrado = ref('')
 
-const modalVisible = ref(false)
-const form = ref({ nombre_completo: '', codigo_matricula: '', fecha_nacimiento: '', sexo: '', nivel_grado: '' })
-const guardando = ref(false)
+function mostrarAlerta(tipo, mensaje) {
+  alerta.value = { tipo, mensaje }
+  setTimeout(() => { alerta.value = { tipo: '', mensaje: '' } }, 4000)
+}
 
-async function cargar() {
-  cargando.value = true; error.value = ''
-  try {
-    const { data } = await adminApi.listarEstudiantes(busqueda.value || undefined)
-    estudiantes.value = data.data
-  } catch (e) {
-    error.value = e.response?.data?.mensaje || 'Error al cargar'
-  } finally {
-    cargando.value = false
+function formatearFecha(fecha) {
+  if (!fecha) return '—'
+  return new Date(fecha).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function obtenerGrado(est) {
+  const matriculas = est.matriculas || est.Matriculas
+  if (matriculas?.length) {
+    const mat = matriculas.find((m) => m.estado === 'activa') || matriculas[matriculas.length - 1]
+    return mat?.grado?.nombre || mat?.Grado?.nombre || '—'
   }
+  return '—'
 }
 
-async function crear() {
-  guardando.value = true; error.value = ''
-  try {
-    const datos = { ...form.value }
-    if (!datos.sexo) delete datos.sexo
-    if (!datos.fecha_nacimiento) delete datos.fecha_nacimiento
-    await adminApi.crearEstudiante(datos)
-    exito.value = 'Estudiante creado'
-    modalVisible.value = false
-    form.value = { nombre_completo: '', codigo_matricula: '', fecha_nacimiento: '', sexo: '', nivel_grado: '' }
-    await cargar()
-  } catch (e) {
-    error.value = e.response?.data?.mensaje || 'Error al crear'
-  } finally {
-    guardando.value = false
+function obtenerPadre(est) {
+  const matriculas = est.matriculas || est.Matriculas
+  if (matriculas?.length) {
+    const mat = matriculas.find((m) => m.estado === 'activa') || matriculas[matriculas.length - 1]
+    return mat?.padre?.nombre_completo || mat?.Padre?.nombre_completo || '—'
   }
+  return '—'
 }
 
-async function toggleEstado(est) {
+const estudiantesFiltrados = computed(() => {
+  if (!filtroGrado.value) return estudiantes.value
+  return estudiantes.value.filter((est) => obtenerGrado(est) === filtroGrado.value)
+})
+
+async function cargarEstudiantes() {
+  cargando.value = true
   try {
-    await adminApi.cambiarEstadoEstudiante(est.id_estudiante, !est.activo)
-    est.activo = !est.activo
-  } catch (e) {
-    error.value = e.response?.data?.mensaje || 'Error'
+    const [eRes, gRes] = await Promise.all([
+      adminApi.listarEstudiantes(),
+      adminApi.listarGrados(),
+    ])
+    estudiantes.value = eRes.data.data || []
+    grados.value = gRes.data.data || []
+  } catch {
+    mostrarAlerta('error', 'Error al cargar estudiantes')
   }
+  cargando.value = false
 }
 
-let timer = null
-function buscar() {
-  clearTimeout(timer)
-  timer = setTimeout(cargar, 400)
-}
-
-onMounted(cargar)
+onMounted(cargarEstudiantes)
 </script>
 
 <template>
-  <div class="contenedor-pagina">
-    <div class="cabecera-flex">
-      <h1 class="titulo-pagina">Estudiantes</h1>
-      <Boton @click="modalVisible = true">Crear estudiante</Boton>
+  <div>
+    <div class="cabecera-pagina">
+      <div>
+        <h1 class="titulo-pagina">Estudiantes</h1>
+        <p class="subtitulo-pagina">Todos los estudiantes registrados en el sistema</p>
+      </div>
     </div>
 
-    <div class="barra-busqueda">
-      <input v-model="busqueda" class="campo-input" placeholder="Buscar por nombre o matricula..." @input="buscar" />
+    <div v-if="alerta.mensaje" class="alerta" :class="`alerta-${alerta.tipo}`">{{ alerta.mensaje }}</div>
+
+    <div class="filtros-barra">
+      <div class="campo-grupo">
+        <label class="campo-etiqueta">Filtrar por grado</label>
+        <select v-model="filtroGrado" class="campo-select">
+          <option value="">Todos los grados</option>
+          <option v-for="g in grados" :key="g.id_grado" :value="g.nombre">{{ g.nombre }}</option>
+        </select>
+      </div>
+      <div class="filtro-resultado">
+        <span class="resultado-count">{{ estudiantesFiltrados.length }}</span> estudiantes
+      </div>
     </div>
 
-    <div v-if="exito" class="alerta alerta-exito">{{ exito }}</div>
-    <div v-if="error" class="alerta alerta-error">{{ error }}</div>
+    <div class="tarjeta tabla-card">
+      <div v-if="cargando" class="cargando-centro"><span class="spinner spinner-grande"></span></div>
 
-    <div v-if="cargando" class="cargando-centro"><div class="spinner spinner-grande"></div></div>
-
-    <div v-else class="tarjeta tabla-contenedor">
-      <table class="tabla">
-        <thead><tr><th>Nombre</th><th>Matricula</th><th>Grado</th><th>Sexo</th><th>Estado</th><th>Acciones</th></tr></thead>
-        <tbody>
-          <tr v-for="e in estudiantes" :key="e.id_estudiante">
-            <td>{{ e.nombre_completo }}</td>
-            <td>{{ e.codigo_matricula || '-' }}</td>
-            <td>{{ e.nivel_grado || '-' }}</td>
-            <td>{{ e.sexo || '-' }}</td>
-            <td><span class="badge" :class="e.activo ? 'badge-activo' : 'badge-inactivo'">{{ e.activo ? 'Activo' : 'Inactivo' }}</span></td>
-            <td><Boton :variante="e.activo ? 'peligro' : 'exito'" tamano="sm" @click="toggleEstado(e)">{{ e.activo ? 'Desactivar' : 'Activar' }}</Boton></td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="!estudiantes.length" class="mensaje-vacio">No hay estudiantes.</div>
-    </div>
-
-    <Modal :visible="modalVisible" titulo="Crear estudiante" @cerrar="modalVisible = false">
-      <form class="form-modal" @submit.prevent="crear">
-        <div class="campo"><label class="campo-etiqueta">Nombre completo</label><input v-model="form.nombre_completo" class="campo-input" required /></div>
-        <div class="campo"><label class="campo-etiqueta">Matricula (opcional)</label><input v-model="form.codigo_matricula" class="campo-input" /></div>
-        <div class="campo"><label class="campo-etiqueta">Fecha nacimiento</label><input v-model="form.fecha_nacimiento" type="date" class="campo-input" /></div>
-        <div class="campo">
-          <label class="campo-etiqueta">Sexo</label>
-          <select v-model="form.sexo" class="campo-input">
-            <option value="">Sin especificar</option>
-            <option value="M">Masculino</option>
-            <option value="F">Femenino</option>
-            <option value="O">Otro</option>
-          </select>
+      <template v-else-if="estudiantesFiltrados.length">
+        <div class="tabla-contenedor">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Estudiante</th>
+                <th>Fecha Nacimiento</th>
+                <th>Sexo</th>
+                <th>Padre / Tutor</th>
+                <th>Grado</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="est in estudiantesFiltrados" :key="est.id_estudiante">
+                <td>
+                  <div class="celda-usuario">
+                    <div class="avatar-sm avatar-ambar">{{ est.nombre_completo?.charAt(0)?.toUpperCase() }}</div>
+                    <span class="celda-nombre">{{ est.nombre_completo }}</span>
+                  </div>
+                </td>
+                <td>{{ formatearFecha(est.fecha_nacimiento) }}</td>
+                <td>{{ est.sexo === 'M' ? 'Masculino' : est.sexo === 'F' ? 'Femenino' : '—' }}</td>
+                <td>{{ obtenerPadre(est) }}</td>
+                <td><span class="badge badge-primario">{{ obtenerGrado(est) }}</span></td>
+                <td>
+                  <span class="badge" :class="est.activo !== false ? 'badge-activo' : 'badge-inactivo'">
+                    {{ est.activo !== false ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="campo"><label class="campo-etiqueta">Grado</label><input v-model="form.nivel_grado" class="campo-input" /></div>
-        <Boton :cargando="guardando" style="margin-top:12px">Crear</Boton>
-      </form>
-    </Modal>
+      </template>
+
+      <div v-else class="vacio-estado">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gris-300)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/>
+        </svg>
+        <p>{{ filtroGrado ? 'No hay estudiantes en este grado' : 'No hay estudiantes registrados' }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.cabecera-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.barra-busqueda { margin-bottom: 16px; }
-.tabla-contenedor { overflow-x: auto; }
-.tabla { width: 100%; border-collapse: collapse; }
-.tabla th { text-align: left; padding: 12px 16px; background: var(--gris-50); border-bottom: 2px solid var(--gris-200); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gris-500); font-weight: 600; }
-.tabla td { padding: 12px 16px; border-bottom: 1px solid var(--gris-100); font-size: 0.9rem; }
-.badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-.badge-activo { background: var(--exito-claro); color: var(--exito); }
-.badge-inactivo { background: var(--gris-100); color: var(--gris-500); }
-.form-modal { display: flex; flex-direction: column; gap: 14px; }
-.campo { display: flex; flex-direction: column; gap: 4px; }
-.campo-etiqueta { font-size: 0.85rem; font-weight: 600; color: var(--gris-700); }
-.campo-input { padding: 9px 12px; border: 1px solid var(--gris-300); border-radius: var(--radio); font-size: 0.9rem; outline: none; width: 100%; }
-.campo-input:focus { border-color: var(--primario); box-shadow: 0 0 0 3px var(--primario-claro); }
+.filtros-barra {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.filtros-barra .campo-grupo {
+  max-width: 240px;
+}
+
+.filtro-resultado {
+  font-size: 0.8125rem;
+  color: var(--gris-500);
+  padding-bottom: 8px;
+}
+
+.resultado-count {
+  font-weight: 700;
+  color: var(--gris-800);
+}
+
+.tabla-card { padding: 0; }
+.tabla-card .cargando-centro,
+.tabla-card .vacio-estado { padding: 64px 24px; }
+
+.vacio-estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--gris-400);
+  font-size: 0.875rem;
+}
+
+.celda-usuario {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.avatar-ambar {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.badge-primario {
+  background: var(--primario-claro);
+  color: var(--primario);
+}
 </style>

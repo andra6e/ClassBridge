@@ -1,16 +1,60 @@
-const { Padre, Estudiante } = require('../database');
+const { Op } = require('sequelize');
+const logger = require('../utils/logger');
+const { Matricula, Asistencia, ContenidoClase } = require('../database');
 
-async function listarEstudiantesDelPadre(id_padre) {
-  const padre = await Padre.findByPk(id_padre, {
-    include: [{
-      association: 'hijos',
-      attributes: ['id_estudiante', 'nombre_completo', 'codigo_matricula', 'fecha_nacimiento', 'sexo', 'nivel_grado', 'activo'],
-      through: { attributes: ['relacion', 'es_principal'] },
-    }],
+async function listarHijos(idPadre) {
+  return Matricula.findAll({
+    where: { id_padre: idPadre, estado: 'activa' },
+    include: [
+      { association: 'estudiante' },
+      { association: 'grado' },
+    ],
   });
-
-  if (!padre) return { error: 'Padre no encontrado' };
-  return { estudiantes: padre.hijos };
 }
 
-module.exports = { listarEstudiantesDelPadre };
+async function historialAsistencia(idPadre, idEstudiante, limite = 50) {
+  const vinculo = await Matricula.findOne({
+    where: { id_padre: idPadre, id_estudiante: idEstudiante },
+  });
+  if (!vinculo) return { error: 'No tienes acceso a este estudiante' };
+
+  return Asistencia.findAll({
+    where: { id_estudiante: idEstudiante },
+    include: [
+      { association: 'grado' },
+      { association: 'justificante' },
+    ],
+    order: [['fecha', 'DESC']],
+    limit: limite,
+  });
+}
+
+async function contenidoPendiente(idPadre, idEstudiante) {
+  const vinculo = await Matricula.findOne({
+    where: { id_padre: idPadre, id_estudiante: idEstudiante, estado: 'activa' },
+  });
+  if (!vinculo) return { error: 'No tienes acceso a este estudiante' };
+
+  const ausencias = await Asistencia.findAll({
+    where: { id_estudiante: idEstudiante, estado: 'ausente' },
+    attributes: ['fecha', 'id_grado'],
+  });
+
+  if (!ausencias.length) return [];
+
+  const fechas = ausencias.map((a) => a.fecha);
+  const idGrado = vinculo.id_grado;
+
+  const contenido = await ContenidoClase.findAll({
+    where: {
+      id_grado: idGrado,
+      fecha: { [Op.in]: fechas },
+    },
+    include: [{ association: 'materia' }],
+    order: [['fecha', 'DESC']],
+  });
+
+  return contenido;
+}
+
+module.exports = { listarHijos, historialAsistencia, contenidoPendiente };

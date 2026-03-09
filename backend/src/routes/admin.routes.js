@@ -1,36 +1,44 @@
 const { Router } = require('express');
-const ctrl = require('../controllers/admin.controller');
 const { autenticar } = require('../middleware/auth.middleware');
 const { permitir } = require('../middleware/roles.middleware');
 const { validar } = require('../middleware/validar.middleware');
-const v = require('../validators/admin.validator');
+const {
+  esquemaCrearMaestro,
+  esquemaCrearPadre,
+  esquemaCrearEstudiante,
+  esquemaCrearMatricula,
+  esquemaCrearAsignacion,
+  esquemaPromocionIndividual,
+  esquemaPromocionGrado,
+  esquemaRegistrarFamilia,
+} = require('../validators/admin.validator');
+const ctrl = require('../controllers/admin.controller');
 
 const router = Router();
 
 router.use(autenticar, permitir('admin'));
 
-// Maestros
 router.get('/maestros', ctrl.listarMaestros);
-router.post('/maestros', validar(v.esquemaCrearMaestro), ctrl.crearMaestro);
-router.patch('/maestros/:id_usuario/estado', validar(v.esquemaCambiarEstado), ctrl.cambiarEstadoMaestro);
+router.post('/maestros', validar(esquemaCrearMaestro), ctrl.crearMaestro);
+router.patch('/maestros/:id', ctrl.toggleMaestro);
 
-// Grupos
-router.get('/grupos', ctrl.listarGrupos);
-router.post('/grupos', validar(v.esquemaCrearGrupo), ctrl.crearGrupo);
-router.patch('/grupos/:id_grupo/asignar-maestro', validar(v.esquemaAsignarMaestro), ctrl.asignarMaestro);
+router.get('/padres', ctrl.listarPadres);
+router.get('/padres/:id', ctrl.obtenerPadre);
+router.post('/padres', validar(esquemaCrearPadre), ctrl.crearPadre);
 
-// Estudiantes
 router.get('/estudiantes', ctrl.listarEstudiantes);
-router.post('/estudiantes', validar(v.esquemaCrearEstudiante), ctrl.crearEstudiante);
-router.patch('/estudiantes/:id_estudiante/estado', validar(v.esquemaCambiarEstado), ctrl.cambiarEstadoEstudiante);
+router.post('/estudiantes', validar(esquemaCrearEstudiante), ctrl.crearEstudiante);
 
-// Matriculas
-router.get('/grupos/:id_grupo/inscritos', ctrl.listarInscritos);
-router.post('/matriculas', validar(v.esquemaMatricula), ctrl.matricularEstudiante);
-router.patch('/matriculas/retirar', validar(v.esquemaMatricula), ctrl.retirarEstudiante);
+router.get('/grados', ctrl.listarGrados);
 
-// Padres
-router.post('/padres', validar(v.esquemaCrearPadre), ctrl.crearPadre);
-router.post('/vincular-padre-estudiante', validar(v.esquemaVincularPadre), ctrl.vincularPadreEstudiante);
+router.get('/matriculas', ctrl.listarMatriculas);
+router.post('/matriculas', validar(esquemaCrearMatricula), ctrl.crearMatricula);
+router.post('/familias', validar(esquemaRegistrarFamilia), ctrl.registrarFamilia);
+
+router.post('/asignaciones', validar(esquemaCrearAsignacion), ctrl.crearAsignacion);
+router.delete('/asignaciones/:id', ctrl.eliminarAsignacion);
+
+router.post('/promocion/individual', validar(esquemaPromocionIndividual), ctrl.promocionIndividual);
+router.post('/promocion/grado', validar(esquemaPromocionGrado), ctrl.promocionGrado);
 
 module.exports = router;

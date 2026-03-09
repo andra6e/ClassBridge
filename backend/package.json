@@ -11,7 +11,8 @@
     "db:migrate:undo:all": "npx sequelize-cli db:migrate:undo:all",
     "db:seed": "npx sequelize-cli db:seed:all",
     "db:seed:undo": "npx sequelize-cli db:seed:undo:all",
-    "db:reset": "npx sequelize-cli db:migrate:undo:all && npx sequelize-cli db:migrate && npx sequelize-cli db:seed:all"
+    "db:reset": "npx sequelize-cli db:migrate:undo:all && npx sequelize-cli db:migrate && npx sequelize-cli db:seed:all",
+    "db:seed:50": "node scripts/seed-50-estudiantes.js"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",

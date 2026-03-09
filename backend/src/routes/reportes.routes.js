@@ -1,15 +1,11 @@
-const { Router } = require('express');
-const ctrl = require('../controllers/reportes.controller');
+﻿const { Router } = require('express');
 const { autenticar } = require('../middleware/auth.middleware');
 const { permitir } = require('../middleware/roles.middleware');
+const ctrl = require('../controllers/reportes.controller');
 
 const router = Router();
 
-// Reportes por grupo (maestro dueño del grupo + admin de la escuela)
-router.get('/grupos/:id_grupo/asistencia-mensual',   autenticar, permitir('maestro', 'admin'), ctrl.asistenciaMensual);
-router.get('/grupos/:id_grupo/inasistencias-criticas', autenticar, permitir('maestro', 'admin'), ctrl.inasistenciasCriticas);
-
-// Resumen general de la escuela (solo admin)
-router.get('/admin/escuela-resumen', autenticar, permitir('admin'), ctrl.resumenEscuela);
+router.use(autenticar, permitir('admin'));
+router.get('/admin', ctrl.estadisticasAdmin);
 
 module.exports = router;

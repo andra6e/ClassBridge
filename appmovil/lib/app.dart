@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/home/presentation/home_screen.dart';
 import 'core/storage/secure_storage.dart';
+import 'core/theme/app_theme.dart';
 import 'providers/hijos_provider.dart';
+import 'providers/asistencia_access_provider.dart';
 
 class ClassBridgeApp extends StatelessWidget {
   const ClassBridgeApp({super.key});
@@ -15,35 +17,15 @@ class ClassBridgeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => HijosProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => HijosProvider()),
+        ChangeNotifierProvider(create: (_) => AsistenciaAccessProvider()),
+      ],
       child: MaterialApp(
         title: 'ClassBridge',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF4F46E5),
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-          ),
-          cardTheme: CardThemeData(
-            elevation: 1,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          appBarTheme: const AppBarTheme(
-            elevation: 0,
-            scrolledUnderElevation: 1,
-          ),
-        ),
+        theme: buildAppTheme(),
         home: FutureBuilder<bool>(
           future: _verificarSesion(),
           builder: (context, snapshot) {

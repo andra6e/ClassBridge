@@ -2,43 +2,23 @@ const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
   const ContenidoClase = sequelize.define('ContenidoClase', {
-    id_contenido: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      autoIncrement: true,
-      primaryKey: true,
-    },
-    id_sesion: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      allowNull: false,
-    },
-    titulo: {
-      type: DataTypes.STRING(200),
-      allowNull: false,
-    },
-    resumen: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-    },
-    notas_extra: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    subido_por: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      allowNull: false,
-    },
+    id_contenido: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_grado: { type: DataTypes.INTEGER, allowNull: false },
+    id_materia: { type: DataTypes.INTEGER, allowNull: false },
+    fecha: { type: DataTypes.DATEONLY, allowNull: false },
+    tema: { type: DataTypes.STRING(200), allowNull: false },
+    explicacion: { type: DataTypes.TEXT, allowNull: false },
+    actividades: { type: DataTypes.TEXT, allowNull: true },
+    registrado_por: { type: DataTypes.INTEGER, allowNull: false },
   }, {
     tableName: 'contenido_clase',
-    freezeTableName: true,
-    timestamps: true,
-    createdAt: 'creado_en',
-    updatedAt: 'actualizado_en',
   });
 
   ContenidoClase.associate = (modelos) => {
-    ContenidoClase.belongsTo(modelos.SesionClase, { foreignKey: 'id_sesion', as: 'sesion' });
-    ContenidoClase.belongsTo(modelos.Usuario, { foreignKey: 'subido_por', as: 'subidor' });
-    ContenidoClase.hasMany(modelos.AdjuntoContenido, { foreignKey: 'id_contenido', as: 'adjuntos' });
+    ContenidoClase.belongsTo(modelos.Grado, { foreignKey: 'id_grado', as: 'grado' });
+    ContenidoClase.belongsTo(modelos.Materia, { foreignKey: 'id_materia', as: 'materia' });
+    ContenidoClase.belongsTo(modelos.Usuario, { foreignKey: 'registrado_por', as: 'registrador' });
+    ContenidoClase.hasMany(modelos.ConversacionIA, { foreignKey: 'id_contenido', as: 'conversaciones' });
   };
 
   return ContenidoClase;

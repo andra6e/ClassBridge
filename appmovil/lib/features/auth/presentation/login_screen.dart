@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/validators.dart';
 import '../../../shared/widgets/primary_button.dart';
 import '../data/auth_repository.dart';
@@ -55,120 +56,114 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).colorScheme.primary,
-              Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
-              const Color(0xFF7C3AED),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.school_rounded,
-                          size: 56,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'ClassBridge',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Portal de padres',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        if (_error != null) ...[
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.shade200),
-                            ),
-                            child: Text(
-                              _error!,
-                              style: TextStyle(
-                                color: Colors.red.shade700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                        TextFormField(
-                          controller: _correoCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          validator: Validadores.correo,
-                          decoration: const InputDecoration(
-                            labelText: 'Correo electronico',
-                            prefixIcon: Icon(Icons.email_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _contrasenaCtrl,
-                          obscureText: !_mostrarContrasena,
-                          textInputAction: TextInputAction.done,
-                          validator: Validadores.contrasena,
-                          onFieldSubmitted: (_) => _iniciarSesion(),
-                          decoration: InputDecoration(
-                            labelText: 'Contrasena',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _mostrarContrasena
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                              ),
-                              onPressed: () => setState(
-                                () => _mostrarContrasena = !_mostrarContrasena,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        BotonPrimario(
-                          texto: 'Iniciar sesion',
-                          cargando: _cargando,
-                          onPressed: _iniciarSesion,
+      backgroundColor: AppColors.surface,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 40),
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColors.primary, AppColors.primaryLight],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
+                    child: const Icon(Icons.school_rounded, size: 36, color: Colors.white),
                   ),
-                ),
+                  const SizedBox(height: 28),
+                  Text('Bienvenido a', style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+                  const SizedBox(height: 4),
+                  const Text('ClassBridge', style: AppTextStyles.heading1),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Inicia sesion para acompañar el aprendizaje de tu hijo',
+                    style: AppTextStyles.bodySm,
+                  ),
+                  const SizedBox(height: 40),
+                  if (_error != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorSoft,
+                        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, size: 20, color: AppColors.error),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: AppTextStyles.bodySm.copyWith(color: AppColors.error),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  Text('CORREO ELECTRONICO', style: AppTextStyles.label),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _correoCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    validator: Validadores.correo,
+                    style: AppTextStyles.body,
+                    decoration: const InputDecoration(
+                      hintText: 'tucorreo@ejemplo.com',
+                      prefixIcon: Icon(Icons.email_outlined, size: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text('CONTRASEÑA', style: AppTextStyles.label),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _contrasenaCtrl,
+                    obscureText: !_mostrarContrasena,
+                    textInputAction: TextInputAction.done,
+                    validator: Validadores.contrasena,
+                    onFieldSubmitted: (_) => _iniciarSesion(),
+                    style: AppTextStyles.body,
+                    decoration: InputDecoration(
+                      hintText: '••••••••',
+                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _mostrarContrasena ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 20,
+                          color: AppColors.textTertiary,
+                        ),
+                        onPressed: () => setState(() => _mostrarContrasena = !_mostrarContrasena),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  BotonPrimario(
+                    texto: 'Iniciar sesion',
+                    cargando: _cargando,
+                    onPressed: _iniciarSesion,
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
           ),

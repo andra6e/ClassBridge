@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../providers/hijos_provider.dart';
 import '../../../shared/widgets/app_loader.dart';
 import '../../asistencia/data/asistencia_models.dart';
@@ -22,14 +23,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final _mensajeCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
-  List<AsistenciaModelo> _sesiones = [];
-  AsistenciaModelo? _sesionSeleccionada;
+  List<ContenidoPendienteModelo> _contenidos = [];
+  ContenidoPendienteModelo? _contenidoSeleccionado;
+  int? _idConversacion;
 
   final List<MensajeChat> _mensajes = [];
-  bool _cargandoSesiones = false;
+  bool _cargandoContenidos = false;
   bool _enviando = false;
 
-  /// Guardamos el id del hijo para detectar cambios en didChangeDependencies.
   int? _ultimoHijoId;
 
   @override
@@ -40,44 +41,64 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (nuevo != null && nuevo.idEstudiante != _ultimoHijoId) {
       _ultimoHijoId = nuevo.idEstudiante;
-      _cargarSesiones(nuevo.idEstudiante);
+      _cargarContenidos(nuevo.idEstudiante);
     }
   }
 
-  Future<void> _cargarSesiones(int idEstudiante) async {
+  Future<void> _cargarContenidos(int idEstudiante) async {
     setState(() {
-      _cargandoSesiones = true;
-      _sesionSeleccionada = null;
-      _sesiones = [];
+      _cargandoContenidos = true;
+      _contenidoSeleccionado = null;
+      _contenidos = [];
       _mensajes.clear();
+      _idConversacion = null;
     });
 
     try {
-      final historial = await _asistenciaRepo.obtenerHistorial(idEstudiante);
-      final conSesion = historial.where((a) => a.sesion != null).toList();
+      final contenidos = await _asistenciaRepo.obtenerContenidoPendiente(idEstudiante);
       if (mounted) {
         setState(() {
-          _sesiones = conSesion;
-          _cargandoSesiones = false;
-          if (conSesion.isNotEmpty) {
-            _sesionSeleccionada = conSesion.first;
-          }
+          _contenidos = contenidos;
+          _cargandoContenidos = false;
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _cargandoSesiones = false;
-        });
-      }
+      if (mounted) setState(() => _cargandoContenidos = false);
+    }
+  }
+
+  Future<void> _seleccionarContenido(ContenidoPendienteModelo contenido) async {
+    setState(() {
+      _contenidoSeleccionado = contenido;
+      _mensajes.clear();
+      _idConversacion = null;
+    });
+
+    final provider = context.read<HijosProvider>();
+    if (provider.hijoSeleccionado == null) return;
+
+    try {
+      final data = await _chatRepo.iniciarConversacion(
+        idEstudiante: provider.hijoSeleccionado!.idEstudiante,
+        idContenido: contenido.idContenido,
+      );
+
+      final conv = data['conversacion'] as Map<String, dynamic>;
+      final mensajesJson = data['mensajes'] as List<dynamic>? ?? [];
+
+      setState(() {
+        _idConversacion = conv['id_conversacion'];
+        _mensajes.addAll(mensajesJson.map((m) => MensajeChat.fromJson(m)));
+      });
+    } catch (e) {
+      setState(() {
+        _mensajes.add(MensajeChat(texto: 'Error al iniciar conversacion: $e', esUsuario: false));
+      });
     }
   }
 
   Future<void> _enviarMensaje(String texto) async {
-    if (texto.trim().isEmpty) return;
-    final provider = context.read<HijosProvider>();
-    if (provider.hijoSeleccionado == null || _sesionSeleccionada == null)
-      return;
+    if (texto.trim().isEmpty || _idConversacion == null) return;
 
     final msg = texto.trim();
     _mensajeCtrl.clear();
@@ -90,8 +111,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final respuesta = await _chatRepo.enviarMensaje(
-        idEstudiante: provider.hijoSeleccionado!.idEstudiante,
-        idSesion: _sesionSeleccionada!.sesion!.idSesion,
+        idConversacion: _idConversacion!,
         mensaje: msg,
       );
       setState(() {
@@ -130,22 +150,17 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<HijosProvider>();
 
-    if (provider.cargando) {
-      return const CargadorApp(mensaje: 'Cargando...');
-    }
-
+    if (provider.cargando) return const CargadorApp(mensaje: 'Cargando...');
     if (provider.hijos.isEmpty) {
-      return const Center(child: Text('No tienes hijos vinculados.'));
+      return Center(child: Text('No tienes hijos vinculados.', style: AppTextStyles.bodySm));
     }
 
     return Column(
       children: [
         _buildSelectores(),
-        const Divider(height: 1),
         Expanded(child: _buildChat()),
-        if (_sesionSeleccionada != null) ...[
+        if (_idConversacion != null) ...[
           AccionesRapidas(onSeleccionar: _enviarMensaje),
-          const SizedBox(height: 4),
           _buildInputMensaje(),
         ],
       ],
@@ -156,184 +171,294 @@ class _ChatScreenState extends State<ChatScreen> {
     final provider = context.watch<HijosProvider>();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      color: Colors.grey.shade50,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.borderLight)),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          DropdownButtonFormField<int>(
-            value: provider.hijoSeleccionado?.idEstudiante,
-            decoration: const InputDecoration(
-              labelText: 'Hijo',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
+          _buildSelectorHijo(provider),
+          const SizedBox(height: 10),
+          if (_cargandoContenidos)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                minHeight: 3,
+                color: AppColors.primary,
+                backgroundColor: AppColors.primarySoft,
               ),
-              isDense: true,
-            ),
-            items: provider.hijos.map((e) {
-              return DropdownMenuItem(
-                value: e.idEstudiante,
-                child: Text(e.nombreCompleto, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
-            onChanged: (id) {
-              if (id == null) return;
-              final hijo = provider.hijos.firstWhere(
-                (e) => e.idEstudiante == id,
-              );
-              provider.seleccionarHijo(hijo);
-            },
-          ),
-          const SizedBox(height: 8),
-          if (_cargandoSesiones)
-            const LinearProgressIndicator()
+            )
           else
-            DropdownButtonFormField<int>(
-              initialValue: _sesionSeleccionada?.idAsistencia,
-              decoration: const InputDecoration(
-                labelText: 'Sesion / Fecha',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                isDense: true,
-              ),
-              items: _sesiones.map((a) {
-                final label = '${a.fechaFormateada} - ${a.materiaGrupo}';
-                return DropdownMenuItem(
-                  value: a.idAsistencia,
-                  child: Text(label, overflow: TextOverflow.ellipsis),
-                );
-              }).toList(),
-              onChanged: (id) {
-                if (id == null) return;
-                setState(() {
-                  _sesionSeleccionada = _sesiones.firstWhere(
-                    (a) => a.idAsistencia == id,
-                  );
-                  _mensajes.clear();
-                });
-              },
-            ),
+            _buildSelectorTema(),
         ],
       ),
     );
   }
 
-  Widget _buildChat() {
-    if (_sesionSeleccionada == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            _sesiones.isEmpty
-                ? 'No hay sesiones disponibles para este hijo.'
-                : 'Selecciona una sesion para comenzar.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
+  Widget _buildSelectorHijo(HijosProvider provider) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: provider.hijoSeleccionado?.idEstudiante,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+          style: AppTextStyles.bodyMedium,
+          hint: Text('Seleccionar hijo', style: AppTextStyles.body.copyWith(color: AppColors.textTertiary)),
+          items: provider.hijos.map((e) {
+            return DropdownMenuItem(
+              value: e.idEstudiante,
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySoft,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        e.nombreCompleto.isNotEmpty ? e.nombreCompleto[0].toUpperCase() : '?',
+                        style: AppTextStyles.bodySm.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(e.nombreCompleto, overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (id) {
+            if (id == null) return;
+            final hijo = provider.hijos.firstWhere((e) => e.idEstudiante == id);
+            provider.seleccionarHijo(hijo);
+          },
         ),
-      );
+      ),
+    );
+  }
+
+  Widget _buildSelectorTema() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: _contenidoSeleccionado?.idContenido,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+          style: AppTextStyles.bodyMedium,
+          hint: Text('Seleccionar tema de clase', style: AppTextStyles.body.copyWith(color: AppColors.textTertiary)),
+          items: _contenidos.map((c) {
+            final label = '${c.materiaNombre}: ${c.tema}';
+            return DropdownMenuItem(
+              value: c.idContenido,
+              child: Text(label, overflow: TextOverflow.ellipsis),
+            );
+          }).toList(),
+          onChanged: (id) {
+            if (id == null) return;
+            final contenido = _contenidos.firstWhere((c) => c.idContenido == id);
+            _seleccionarContenido(contenido);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChat() {
+    if (_contenidoSeleccionado == null) {
+      return _buildEstadoVacio();
     }
 
     if (_mensajes.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.chat_bubble_outline,
-                size: 56,
-                color: Colors.grey.shade300,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Pregunta lo que necesites sobre la clase',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 15),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Usa las acciones rapidas o escribe tu pregunta',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildEstadoInicial();
     }
 
     return ListView.builder(
       controller: _scrollCtrl,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: _mensajes.length + (_enviando ? 1 : 0),
       itemBuilder: (context, i) {
         if (i == _mensajes.length && _enviando) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SizedBox(width: 60, child: LinearProgressIndicator()),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.aiSoft,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                  ),
+                  child: SizedBox(
+                    width: 48,
+                    height: 4,
+                    child: LinearProgressIndicator(
+                      borderRadius: BorderRadius.circular(2),
+                      color: AppColors.aiAccent,
+                      backgroundColor: AppColors.aiAccent.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         }
-        final msg = _mensajes[i];
-        return BurbujaMensaje(texto: msg.texto, esUsuario: msg.esUsuario);
+        return BurbujaMensaje(texto: _mensajes[i].texto, esUsuario: _mensajes[i].esUsuario);
       },
+    );
+  }
+
+  Widget _buildEstadoVacio() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.aiSoft,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.auto_awesome_rounded, size: 32, color: AppColors.aiAccent),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _contenidos.isEmpty
+                  ? 'No hay contenido pendiente'
+                  : 'Selecciona un tema',
+              style: AppTextStyles.heading3,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _contenidos.isEmpty
+                  ? 'Cuando tu hijo tenga clases, podras consultarlas aqui.'
+                  : 'Elige un tema de clase para comenzar a chatear con la IA.',
+              style: AppTextStyles.bodySm,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEstadoInicial() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.aiSoft,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.chat_rounded, size: 32, color: AppColors.aiAccent),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              '¿En que te puedo ayudar?',
+              style: AppTextStyles.heading3,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceAlt,
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+              ),
+              child: Text(
+                _contenidoSeleccionado!.tema,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Usa las acciones rapidas o escribe tu pregunta',
+              style: AppTextStyles.caption,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildInputMensaje() {
     return Container(
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 8,
-        top: 8,
-        bottom: MediaQuery.of(context).padding.bottom + 8,
-      ),
+      padding: EdgeInsets.fromLTRB(12, 8, 8, MediaQuery.of(context).padding.bottom + 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, -1),
+            color: AppColors.shadow,
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _mensajeCtrl,
-              textInputAction: TextInputAction.send,
-              maxLines: 3,
-              minLines: 1,
-              onSubmitted: _enviando
-                  ? null
-                  : (_) => _enviarMensaje(_mensajeCtrl.text),
-              decoration: const InputDecoration(
-                hintText: 'Escribe tu pregunta...',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceAlt,
+                borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+              ),
+              child: TextField(
+                controller: _mensajeCtrl,
+                textInputAction: TextInputAction.send,
+                maxLines: 3,
+                minLines: 1,
+                style: AppTextStyles.body,
+                onSubmitted: _enviando ? null : (_) => _enviarMensaje(_mensajeCtrl.text),
+                decoration: InputDecoration(
+                  hintText: 'Escribe tu pregunta...',
+                  hintStyle: AppTextStyles.body.copyWith(color: AppColors.textTertiary),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 ),
-                isDense: true,
               ),
             ),
           ),
           const SizedBox(width: 8),
-          IconButton.filled(
-            onPressed: _enviando
-                ? null
-                : () => _enviarMensaje(_mensajeCtrl.text),
-            icon: const Icon(Icons.send),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _enviando ? AppColors.surfaceAlt : AppColors.primary,
+              borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+            ),
+            child: IconButton(
+              onPressed: _enviando ? null : () => _enviarMensaje(_mensajeCtrl.text),
+              icon: Icon(
+                Icons.arrow_upward_rounded,
+                color: _enviando ? AppColors.textTertiary : Colors.white,
+                size: 22,
+              ),
+            ),
           ),
         ],
       ),

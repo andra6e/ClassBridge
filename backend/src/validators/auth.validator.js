@@ -2,11 +2,15 @@ const { z } = require('zod');
 
 const esquemaLogin = z.object({
   correo: z.string().email('Correo invalido'),
-  contrasena: z.string().min(1, 'La contrasena es requerida'),
+  contrasena: z.string().min(1, 'Contrasena requerida'),
 });
 
 const esquemaRefresh = z.object({
-  refresh_token: z.string().min(1, 'El refresh token es requerido'),
+  refresh_token: z.string().min(1, 'Refresh token requerido'),
 });
 
-module.exports = { esquemaLogin, esquemaRefresh };
+const esquemaVerificarContrasena = z.object({
+  contrasena: z.string().min(1, 'Contrasena requerida'),
+});
+
+module.exports = { esquemaLogin, esquemaRefresh, esquemaVerificarContrasena };

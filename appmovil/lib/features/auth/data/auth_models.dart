@@ -1,22 +1,22 @@
-class PadreModelo {
-  final int idPadre;
+class UsuarioModelo {
+  final int idUsuario;
   final String nombreCompleto;
   final String correo;
-  final int idEscuela;
+  final String rol;
 
-  PadreModelo({
-    required this.idPadre,
+  UsuarioModelo({
+    required this.idUsuario,
     required this.nombreCompleto,
     required this.correo,
-    required this.idEscuela,
+    required this.rol,
   });
 
-  factory PadreModelo.fromJson(Map<String, dynamic> json) {
-    return PadreModelo(
-      idPadre: json['id_padre'],
+  factory UsuarioModelo.fromJson(Map<String, dynamic> json) {
+    return UsuarioModelo(
+      idUsuario: json['id_usuario'],
       nombreCompleto: json['nombre_completo'],
       correo: json['correo'],
-      idEscuela: json['id_escuela'],
+      rol: json['rol'],
     );
   }
 }
@@ -24,12 +24,12 @@ class PadreModelo {
 class RespuestaLogin {
   final String accessToken;
   final String refreshToken;
-  final PadreModelo padre;
+  final UsuarioModelo usuario;
 
   RespuestaLogin({
     required this.accessToken,
     required this.refreshToken,
-    required this.padre,
+    required this.usuario,
   });
 
   factory RespuestaLogin.fromJson(Map<String, dynamic> json) {
@@ -38,7 +38,7 @@ class RespuestaLogin {
     return RespuestaLogin(
       accessToken: tokens['accessToken'],
       refreshToken: tokens['refreshToken'],
-      padre: PadreModelo.fromJson(data['padre']),
+      usuario: UsuarioModelo.fromJson(data['usuario']),
     );
   }
 }

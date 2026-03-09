@@ -30,24 +30,26 @@ const esLogin = computed(() => route.name === 'login')
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primario) 0%, #7c3aed 100%);
+  background: var(--gris-50);
 }
 
 .layout-app {
   display: flex;
   min-height: 100vh;
+  background: var(--gris-50);
 }
 
 .layout-contenido {
   flex: 1;
-  margin-left: 240px;
+  margin-left: var(--sidebar-ancho);
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
 }
 
 .layout-main {
   flex: 1;
-  padding: 24px;
+  padding: 28px 32px;
   overflow-y: auto;
 }
 </style>

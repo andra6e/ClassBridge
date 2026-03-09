@@ -1,28 +1,34 @@
 const padresService = require('../services/padres.service');
-const estudiantesService = require('../services/estudiantes.service');
 const { exito, error } = require('../utils/response');
 
-async function listarEstudiantes(req, res, next) {
+async function listarHijos(req, res, next) {
   try {
-    const resultado = await padresService.listarEstudiantesDelPadre(req.usuario.id);
-    if (resultado.error) return error(res, resultado.error, 404);
-    return exito(res, resultado.estudiantes, 'Hijos del padre');
+    const resultado = await padresService.listarHijos(req.usuario.id);
+    return exito(res, resultado, 'Hijos listados');
   } catch (err) { next(err); }
 }
 
 async function historialAsistencia(req, res, next) {
   try {
-    const id_estudiante = parseInt(req.params.id_estudiante, 10);
-    if (isNaN(id_estudiante)) return error(res, 'id_estudiante invalido', 400);
-
-    const limite = parseInt(req.query.limite, 10) || 50;
-    const resultado = await estudiantesService.obtenerHistorialAsistenciaPadre(
-      req.usuario.id, id_estudiante, limite
+    const resultado = await padresService.historialAsistencia(
+      req.usuario.id,
+      parseInt(req.params.id_estudiante, 10),
+      req.query.limite ? parseInt(req.query.limite, 10) : undefined,
     );
-
     if (resultado.error) return error(res, resultado.error, 403);
-    return exito(res, resultado.asistencias, 'Historial de asistencia');
+    return exito(res, resultado, 'Historial de asistencia obtenido');
   } catch (err) { next(err); }
 }
 
-module.exports = { listarEstudiantes, historialAsistencia };
+async function contenidoPendiente(req, res, next) {
+  try {
+    const resultado = await padresService.contenidoPendiente(
+      req.usuario.id,
+      parseInt(req.params.id_estudiante, 10),
+    );
+    if (resultado.error) return error(res, resultado.error, 403);
+    return exito(res, resultado, 'Contenido pendiente obtenido');
+  } catch (err) { next(err); }
+}
+
+module.exports = { listarHijos, historialAsistencia, contenidoPendiente };
