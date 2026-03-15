@@ -76,6 +76,7 @@ async function revisarJustificante(idJustificante, idMaestro, estado) {
     include: [{ association: 'asistencia' }],
   });
   if (!justificante) return { error: 'Justificante no encontrado' };
+  if (!justificante.asistencia) return { error: 'La asistencia asociada ya no existe' };
   if (justificante.asistencia.id_grado !== asignacion.id_grado) {
     return { error: 'No tienes acceso a este justificante' };
   }

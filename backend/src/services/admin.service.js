@@ -51,20 +51,20 @@ async function listarPadres({ q, estado, estudiante } = {}) {
     ];
   }
 
-  const filtroEstudiante = estudiante ? {
-    association: 'matriculasComoPadre',
-    include: [{ association: 'estudiante', where: { nombre_completo: { [Op.like]: `%${estudiante}%` } } }],
-    required: true,
-  } : {
-    association: 'matriculasComoPadre',
-    include: [{ association: 'estudiante' }],
-    required: false,
-  };
+  // Solo hacer JOIN pesado cuando se filtra por nombre de estudiante
+  const includes = [];
+  if (estudiante) {
+    includes.push({
+      association: 'matriculasComoPadre',
+      include: [{ association: 'estudiante', where: { nombre_completo: { [Op.like]: `%${estudiante}%` } } }],
+      required: true,
+    });
+  }
 
   return Usuario.findAll({
     where,
     attributes: { exclude: ['hash_contrasena'] },
-    include: [filtroEstudiante],
+    include: includes,
     order: [['nombre_completo', 'ASC']],
     distinct: true,
   });

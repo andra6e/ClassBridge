@@ -50,22 +50,23 @@ function obtenerPadre(est) {
 
 async function cargarEstudiantes() {
   cargando.value = true
-  try {
-    const [eRes, gRes, pRes] = await Promise.all([
-      adminApi.listarEstudiantes({
-        id_grado: filtroGrado.value || undefined,
-        id_padre: filtroPadre.value || undefined,
-        estado: filtroEstado.value || undefined,
-      }),
-      adminApi.listarGrados(),
-      adminApi.listarPadres(),
-    ])
-    estudiantes.value = eRes.data.data || []
-    grados.value = gRes.data.data || []
-    padres.value = pRes.data.data || []
-  } catch {
+  // allSettled evita que un fallo en padres/grados vacíe la tabla principal
+  const [eRes, gRes, pRes] = await Promise.allSettled([
+    adminApi.listarEstudiantes({
+      id_grado: filtroGrado.value || undefined,
+      id_padre: filtroPadre.value || undefined,
+      estado: filtroEstado.value || undefined,
+    }),
+    adminApi.listarGrados(),
+    adminApi.listarPadres(),
+  ])
+  if (eRes.status === 'fulfilled') {
+    estudiantes.value = eRes.value.data.data || []
+  } else {
     mostrarAlerta('error', 'Error al cargar estudiantes')
   }
+  if (gRes.status === 'fulfilled') grados.value = gRes.value.data.data || []
+  if (pRes.status === 'fulfilled') padres.value = pRes.value.data.data || []
   cargando.value = false
 }
 

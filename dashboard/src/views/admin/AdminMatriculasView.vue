@@ -41,18 +41,14 @@ function gradoNombre(mat) {
 }
 
 async function cargarCatalogos() {
-  try {
-    const [gRes, pRes, eRes] = await Promise.all([
-      adminApi.listarGrados(),
-      adminApi.listarPadres(),
-      adminApi.listarEstudiantes(),
-    ])
-    grados.value = gRes.data.data || []
-    padres.value = pRes.data.data || []
-    estudiantes.value = eRes.data.data || []
-  } catch {
-    // ignore
-  }
+  const [gRes, pRes, eRes] = await Promise.allSettled([
+    adminApi.listarGrados(),
+    adminApi.listarPadres(),
+    adminApi.listarEstudiantes(),
+  ])
+  if (gRes.status === 'fulfilled') grados.value = gRes.value.data.data || []
+  if (pRes.status === 'fulfilled') padres.value = pRes.value.data.data || []
+  if (eRes.status === 'fulfilled') estudiantes.value = eRes.value.data.data || []
 }
 
 async function cargarMatriculas() {
