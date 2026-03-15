@@ -1,0 +1,47 @@
+========================================
+  CÓMO EJECUTAR LA APP MÓVIL (FLUTTER)
+========================================
+
+El error "Unable to delete directory" aparece porque algún proceso (Cursor, 
+OneDrive o Gradle) tiene archivos abiertos en la carpeta del proyecto.
+
+--- OPCIÓN A: Ejecutar FUERA de Cursor (recomendado) ---
+
+1. Cierra Cursor por completo (Archivo > Salir o cerrar la app).
+
+2. Si usas OneDrive: clic en el icono de OneDrive en la bandeja del sistema
+   (abajo a la derecha) > Pausar sincronización > 24 horas.
+
+3. Abre PowerShell (no hace falta ser administrador).
+
+4. Ve a la carpeta de la app:
+   cd "C:\Users\Andrade\Documents\Universidad\2026\Q1\01_Tecnologias Emergentes\Proyecto\ClassBridge V3\ClassBridge\appmovil"
+
+5. Ejecuta el script de limpieza y ejecución:
+   powershell -ExecutionPolicy Bypass -File limpiar_y_ejecutar.ps1
+
+   Ese script intenta limpiar, hace flutter pub get y luego flutter run
+   (en emulador Android si hay uno, si no en Windows).
+
+--- OPCIÓN B: Sin cerrar Cursor, probar en otra terminal ---
+
+1. Cierra la terminal donde falló (en Cursor).
+2. Abre una terminal NUEVA de Windows (Win + R > cmd o powershell > Enter).
+3. En esa terminal (fuera de Cursor):
+   cd "C:\Users\Andrade\Documents\Universidad\2026\Q1\01_Tecnologias Emergentes\Proyecto\ClassBridge V3\ClassBridge\appmovil"
+   flutter run -d windows
+
+   Si sigue fallando, es que Cursor o OneDrive siguen bloqueando: usa Opción A.
+
+--- OPCIÓN C: Mover el proyecto (si OneDrive molesta siempre) ---
+
+1. Copia toda la carpeta "ClassBridge" a C:\ClassBridge
+2. Abre el proyecto desde C:\ClassBridge en Cursor.
+3. En terminal: cd C:\ClassBridge\appmovil
+   flutter pub get
+   flutter run -d windows
+
+========================================
+Recuerda: el backend debe estar en marcha (npm run dev en backend/) 
+para que la app se conecte a la API.
+========================================

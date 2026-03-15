@@ -15,7 +15,10 @@ async function iniciar() {
       logger.info(`Servidor corriendo en http://localhost:${PUERTO}`);
     });
   } catch (err) {
-    logger.error('Error al conectar con la base de datos:', err);
+    logger.error('Error al conectar con la base de datos:', err.message);
+    if (err.message && err.message.includes('timeout')) {
+      logger.error('Sugerencia: Comprueba que MySQL (XAMPP) esté en ejecución. Prueba: node scripts/probar-conexion-mysql.js');
+    }
     process.exit(1);
   }
 }

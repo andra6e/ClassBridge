@@ -1,4 +1,4 @@
-﻿const { Router } = require('express');
+const { Router } = require('express');
 const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
 const maestroRoutes = require('./maestro.routes');
@@ -9,6 +9,11 @@ const reportesRoutes = require('./reportes.routes');
 const movimientosRoutes = require('./movimientos.routes');
 
 const router = Router();
+
+// Health sin usar la BD (para comprobar si el proceso está en marcha)
+router.get('/health', (_req, res) => {
+  res.json({ ok: true, mensaje: 'API en marcha' });
+});
 
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);

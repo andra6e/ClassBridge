@@ -50,23 +50,33 @@ function obtenerPadre(est) {
 
 async function cargarEstudiantes() {
   cargando.value = true
+  alerta.value = { tipo: '', mensaje: '' }
   try {
-    const [eRes, gRes, pRes] = await Promise.all([
-      adminApi.listarEstudiantes({
-        id_grado: filtroGrado.value || undefined,
-        id_padre: filtroPadre.value || undefined,
-        estado: filtroEstado.value || undefined,
-      }),
-      adminApi.listarGrados(),
-      adminApi.listarPadres(),
-    ])
-    estudiantes.value = eRes.data.data || []
+    const gRes = await adminApi.listarGrados()
     grados.value = gRes.data.data || []
+    const pRes = await adminApi.listarPadres()
     padres.value = pRes.data.data || []
-  } catch {
-    mostrarAlerta('error', 'Error al cargar estudiantes')
+    const eRes = await adminApi.listarEstudiantes({
+      id_grado: filtroGrado.value || undefined,
+      id_padre: filtroPadre.value || undefined,
+      estado: filtroEstado.value || undefined,
+    })
+    estudiantes.value = eRes.data.data || []
+  } catch (err) {
+    const esTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout')
+    const es503 = err.response?.status === 503
+    const mensaje = es503
+      ? 'Servidor ocupado. Espera unos segundos e intenta de nuevo.'
+      : esTimeout
+        ? 'La carga tardó demasiado. Comprueba que el servidor y MySQL (XAMPP) estén en marcha.'
+        : (err.response?.data?.mensaje || 'Error al cargar estudiantes')
+    mostrarAlerta('error', mensaje)
+    estudiantes.value = []
+    if (!grados.value?.length) grados.value = []
+    if (!padres.value?.length) padres.value = []
+  } finally {
+    cargando.value = false
   }
-  cargando.value = false
 }
 
 function abrirEditar(est) {
@@ -114,7 +124,10 @@ onMounted(cargarEstudiantes)
       </div>
     </div>
 
-    <div v-if="alerta.mensaje" class="alerta" :class="`alerta-${alerta.tipo}`">{{ alerta.mensaje }}</div>
+    <div v-if="alerta.mensaje" class="alerta" :class="`alerta-${alerta.tipo}`">
+      {{ alerta.mensaje }}
+      <span v-if="alerta.tipo === 'error'" class="alerta-accion" @click="cargarEstudiantes">Reintentar</span>
+    </div>
 
     <div class="filtros-barra">
       <div class="campo-grupo">
@@ -221,4 +234,12 @@ onMounted(cargarEstudiantes)
 }
 .tabla-card { padding: 0; }
 .badge-primario { background: var(--primario-claro); color: var(--primario); }
+.alerta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.alerta-accion {
+  margin-left: 4px;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+}
+.alerta-accion:hover { opacity: 0.9; }
 </style>

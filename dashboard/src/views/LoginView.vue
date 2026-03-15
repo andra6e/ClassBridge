@@ -24,10 +24,12 @@ async function iniciarSesion() {
     await auth.login(correo.value, contrasena.value)
     router.push('/dashboard')
   } catch (err) {
-    if (err.response?.data?.mensaje) {
+    if (err.response?.status === 503 || err.response?.data?.mensaje?.includes('Servidor ocupado')) {
+      error.value = 'Servidor ocupado. Espera unos segundos e intenta de nuevo.'
+    } else if (err.response?.data?.mensaje) {
       error.value = err.response.data.mensaje
-    } else if (!err.response) {
-      error.value = 'No se pudo conectar al servidor. Verifica que el backend esté corriendo.'
+    } else if (!err.response || err.code === 'ECONNABORTED') {
+      error.value = 'No se pudo conectar al servidor. Comprueba que el backend esté en marcha y que MySQL (XAMPP) esté corriendo.'
     } else {
       error.value = 'Error al iniciar sesión'
     }

@@ -1,12 +1,17 @@
 const rateLimit = require('express-rate-limit');
 
-const limitadorAuth = rateLimit({
+const limitadorAuthConfig = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, mensaje: 'Demasiados intentos de autenticacion. Espera 1 minuto.', data: null },
 });
+
+const limitadorAuth = (req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') return next();
+  limitadorAuthConfig(req, res, next);
+};
 
 const limitadorIA = rateLimit({
   windowMs: 1 * 60 * 1000,

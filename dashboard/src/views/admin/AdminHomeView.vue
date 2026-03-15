@@ -138,7 +138,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
+  <div class="dashboard-inicio">
     <div class="cabecera-dash">
       <div>
         <h1 class="titulo-pagina">Panel de Administración</h1>
@@ -228,14 +228,14 @@ onMounted(async () => {
             <p v-else class="mensaje-vacio">Sin justificantes</p>
           </div>
         </div>
-      </div>
 
-      <div class="grafica-card tarjeta" style="margin-bottom: 24px;">
-        <h3 class="grafica-titulo">Estudiantes por Grado</h3>
-        <p class="grafica-subtitulo">Distribución de matrículas activas</p>
-        <div class="grafica-contenedor">
-          <Bar v-if="chartEstudiantes" :data="chartEstudiantes.data" :options="chartEstudiantes.options" />
-          <p v-else class="mensaje-vacio">Sin datos</p>
+        <div class="grafica-card tarjeta grafica-ancho-completo">
+          <h3 class="grafica-titulo">Estudiantes por Grado</h3>
+          <p class="grafica-subtitulo">Distribución de matrículas activas</p>
+          <div class="grafica-contenedor">
+            <Bar v-if="chartEstudiantes" :data="chartEstudiantes.data" :options="chartEstudiantes.options" />
+            <p v-else class="mensaje-vacio">Sin datos</p>
+          </div>
         </div>
       </div>
 
@@ -264,13 +264,19 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.dashboard-inicio {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .cabecera-dash {
   margin-bottom: 24px;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -329,7 +335,7 @@ onMounted(async () => {
 
 .metricas-rapidas {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -369,13 +375,18 @@ onMounted(async () => {
 
 .graficas-grid {
   display: grid;
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 20px;
   margin-bottom: 20px;
 }
 
 .grafica-card {
   padding: 24px;
+  min-width: 0;
+}
+
+.grafica-card.grafica-ancho-completo {
+  grid-column: 1 / -1;
 }
 
 .grafica-titulo {
@@ -393,11 +404,15 @@ onMounted(async () => {
 
 .grafica-contenedor {
   height: 260px;
+  min-height: 200px;
   position: relative;
+  min-width: 0;
+  width: 100%;
 }
 
 .grafica-donut {
   height: 240px;
+  min-height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -464,8 +479,18 @@ onMounted(async () => {
 }
 
 @media (max-width: 1100px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .metricas-rapidas { grid-template-columns: repeat(2, 1fr); }
-  .graficas-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metricas-rapidas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .graficas-grid {
+    grid-template-columns: 1fr;
+  }
+  .grafica-card.grafica-ancho-completo {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .metricas-rapidas { grid-template-columns: 1fr; }
 }
 </style>

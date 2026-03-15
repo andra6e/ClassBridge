@@ -4,7 +4,7 @@ const { exito, error } = require('../utils/response');
 async function login(req, res, next) {
   try {
     const resultado = await authService.loginUsuario(req.body.correo, req.body.contrasena);
-    if (resultado.error) return error(res, resultado.error, 401);
+    if (resultado.error) return error(res, resultado.error, 400);
     return exito(res, resultado, 'Login exitoso');
   } catch (err) {
     next(err);

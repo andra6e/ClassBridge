@@ -40,7 +40,8 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     } catch (e) {
-      setState(() => _error = e.toString());
+      final msg = e.toString().replaceFirst('ErrorApi: ', '').replaceFirst('Exception: ', '');
+      setState(() => _error = msg);
     } finally {
       if (mounted) setState(() => _cargando = false);
     }

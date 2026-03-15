@@ -34,19 +34,22 @@ class ApiClient {
   }
 
   static const _timeout = Duration(seconds: 15);
+  static const _timeoutIA = Duration(seconds: 60);
 
-  Future<Map<String, dynamic>> get(String ruta) async {
+  Future<Map<String, dynamic>> get(String ruta, {Duration? timeout}) async {
+    final t = timeout ?? _timeout;
     final respuesta = await _ejecutar(() async {
       final url = Uri.parse('$_baseUrl$ruta');
-      return http.get(url, headers: await _headers()).timeout(_timeout);
+      return http.get(url, headers: await _headers()).timeout(t);
     });
     return respuesta;
   }
 
-  Future<Map<String, dynamic>> post(String ruta, Map<String, dynamic> cuerpo) async {
+  Future<Map<String, dynamic>> post(String ruta, Map<String, dynamic> cuerpo, {Duration? timeout}) async {
+    final t = timeout ?? _timeout;
     final respuesta = await _ejecutar(() async {
       final url = Uri.parse('$_baseUrl$ruta');
-      return http.post(url, headers: await _headers(), body: jsonEncode(cuerpo)).timeout(_timeout);
+      return http.post(url, headers: await _headers(), body: jsonEncode(cuerpo)).timeout(t);
     });
     return respuesta;
   }

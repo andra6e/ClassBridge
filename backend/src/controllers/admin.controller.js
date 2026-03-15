@@ -128,7 +128,8 @@ async function listarGrados(req, res, next) {
 
 async function listarMatriculas(req, res, next) {
   try {
-    const resultado = await adminService.listarMatriculas(req.query.anio_escolar);
+    const id_padre = req.query.id_padre ? Number(req.query.id_padre) : undefined;
+    const resultado = await adminService.listarMatriculas(req.query.anio_escolar, id_padre);
     return exito(res, resultado, 'Matriculas listadas');
   } catch (err) { next(err); }
 }

@@ -139,14 +139,10 @@ async function actualizarPadre(idUsuario, datos) {
 async function eliminarPadre(idUsuario) {
   const padre = await Usuario.findOne({ where: { id_usuario: idUsuario, rol: 'padre' } });
   if (!padre) return { error: 'Padre no encontrado' };
+  const nombrePadre = padre.nombre_completo;
   await padre.destroy();
-  await registrarMovimiento({
-    id_usuario: idUsuario,
-    rol: 'padre',
-    accion: 'padre_eliminado',
-    detalle: `Padre eliminado: ${padre.nombre_completo}`,
-  });
-  return { eliminado: true };
+  // El movimiento se registra en el controller con el id del admin (req.usuario.id)
+  return { eliminado: true, nombre_eliminado: nombrePadre };
 }
 
 async function listarEstudiantes({ id_grado, id_padre, estado } = {}) {
@@ -200,8 +196,10 @@ async function listarGrados() {
   });
 }
 
-async function listarMatriculas(anio_escolar) {
-  const where = anio_escolar ? { anio_escolar } : {};
+async function listarMatriculas(anio_escolar, id_padre) {
+  const where = {};
+  if (anio_escolar) where.anio_escolar = anio_escolar;
+  if (id_padre) where.id_padre = id_padre;
   return Matricula.findAll({
     where,
     include: [

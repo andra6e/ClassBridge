@@ -26,6 +26,14 @@ function manejadorErrores(err, _req, res, _next) {
     return res.status(401).json({ ok: false, mensaje: 'Token invalido o expirado', data: null });
   }
 
+  if (err.name === 'SequelizeConnectionAcquireTimeoutError') {
+    return res.status(503).json({
+      ok: false,
+      mensaje: 'Servidor ocupado. Espera unos segundos e intenta de nuevo.',
+      data: null,
+    });
+  }
+
   const codigo = err.statusCode || 500;
   const mensaje = codigo === 500 ? 'Error interno del servidor' : err.message;
   return res.status(codigo).json({ ok: false, mensaje, data: null });

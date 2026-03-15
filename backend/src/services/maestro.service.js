@@ -71,16 +71,23 @@ async function guardarContenido(datos) {
   if (tipoContenido === 'materia') where.id_materia = datos.id_materia;
   else where.id_materia = { [Op.is]: null };
 
+  const defaultsContenido = {
+    id_grado: datos.id_grado,
+    fecha: datos.fecha,
+    tipo_contenido: tipoContenido,
+    id_materia: tipoContenido === 'materia' ? datos.id_materia : null,
+    tema: datos.tema,
+    explicacion: datos.explicacion,
+    actividades: datos.actividades ?? null,
+    archivo_nombre: archivoGuardado?.nombre || null,
+    archivo_url: archivoGuardado?.url || null,
+    archivo_mime: archivoGuardado?.mime || null,
+    registrado_por: datos.registrado_por,
+  };
+
   const [contenido, creado] = await ContenidoClase.findOrCreate({
     where,
-    defaults: {
-      ...datos,
-      tipo_contenido: tipoContenido,
-      id_materia: tipoContenido === 'materia' ? datos.id_materia : null,
-      archivo_nombre: archivoGuardado?.nombre || null,
-      archivo_url: archivoGuardado?.url || null,
-      archivo_mime: archivoGuardado?.mime || null,
-    },
+    defaults: defaultsContenido,
   });
 
   if (!creado) {

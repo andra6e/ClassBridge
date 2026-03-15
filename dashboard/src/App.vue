@@ -41,6 +41,7 @@ const esLogin = computed(() => route.name === 'login')
 
 .layout-contenido {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-ancho);
   display: flex;
   flex-direction: column;
@@ -49,7 +50,9 @@ const esLogin = computed(() => route.name === 'login')
 
 .layout-main {
   flex: 1;
+  min-width: 0;
   padding: 28px 32px;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 </style>

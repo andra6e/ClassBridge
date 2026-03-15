@@ -109,6 +109,20 @@ class _HomeScreenState extends State<HomeScreen>
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final n = items[i];
+                    final tipo = n['tipo'] ?? 'justificante';
+                    if (tipo == 'asistencia') {
+                      final nombre = (n['estudiante']?['nombre_completo'] ?? 'Estudiante').toString();
+                      final estadoAsist = n['estado'] == 'presente' ? 'presente' : 'ausente';
+                      final fechaStr = n['fecha']?.toString() ?? '';
+                      final fechaFormateada = fechaStr.length >= 10
+                          ? '${fechaStr.substring(8, 10)}/${fechaStr.substring(5, 7)}/${fechaStr.substring(0, 4)}'
+                          : fechaStr;
+                      return ListTile(
+                        dense: true,
+                        title: const Text('Asistencia registrada'),
+                        subtitle: Text('$nombre estuvo $estadoAsist${fechaFormateada.isNotEmpty ? ' el $fechaFormateada' : ''}'.trim()),
+                      );
+                    }
                     final estado = n['estado'] ?? 'pendiente';
                     final estudiante =
                         (n['asistencia']?['estudiante']?['nombre_completo'] ??
