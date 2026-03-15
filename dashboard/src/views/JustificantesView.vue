@@ -8,12 +8,16 @@ const cargando = ref(false)
 const procesandoId = ref(null)
 const error = ref('')
 const exito = ref('')
+const tab = ref('pendientes')
+const filtroEstado = ref('')
 
 async function cargar() {
   cargando.value = true
   error.value = ''
   try {
-    const res = await justificantesApi.listarPendientes()
+    const res = tab.value === 'pendientes'
+      ? await justificantesApi.listarPendientes()
+      : await justificantesApi.listarHistorial({ estado: filtroEstado.value || undefined })
     justificantes.value = res.data.data || []
   } catch (err) {
     error.value = err.response?.data?.mensaje || 'Error al cargar justificantes'
@@ -37,6 +41,16 @@ async function revisar(id, estado) {
   }
 }
 
+function cambiarTab(nueva) {
+  tab.value = nueva
+  cargar()
+}
+
+function abrirAdjunto(just) {
+  if (!just.archivo_url) return
+  window.open(just.archivo_url, '_blank')
+}
+
 function formatearFecha(fecha) {
   if (!fecha) return ''
   const d = new Date(fecha)
@@ -50,12 +64,22 @@ onMounted(cargar)
   <div>
     <div class="cabecera-pagina">
       <div>
-        <h1 class="titulo-pagina">Justificantes Pendientes</h1>
-        <p class="subtitulo-pagina">Revisa y gestiona los justificantes enviados por los padres</p>
+        <h1 class="titulo-pagina">Justificantes</h1>
+        <p class="subtitulo-pagina">Revisa pendientes e historial de aprobados/rechazados</p>
       </div>
       <div v-if="justificantes.length" class="contador-badge">
         {{ justificantes.length }} pendiente{{ justificantes.length > 1 ? 's' : '' }}
       </div>
+    </div>
+
+    <div class="tabs-barra">
+      <button class="tab-btn" :class="{ activo: tab === 'pendientes' }" @click="cambiarTab('pendientes')">Pendientes</button>
+      <button class="tab-btn" :class="{ activo: tab === 'historial' }" @click="cambiarTab('historial')">Historial</button>
+      <select v-if="tab === 'historial'" v-model="filtroEstado" class="campo-select" @change="cargar">
+        <option value="">Todos</option>
+        <option value="aprobado">Aprobados</option>
+        <option value="rechazado">Rechazados</option>
+      </select>
     </div>
 
     <div v-if="error" class="alerta alerta-error">{{ error }}</div>
@@ -102,9 +126,12 @@ onMounted(cargar)
               <span class="motivo-label">Motivo:</span>
               {{ just.motivo }}
             </div>
+            <div v-if="just.archivo_url" class="just-adjunto">
+              <a href="#" @click.prevent="abrirAdjunto(just)">Ver / descargar adjunto</a>
+            </div>
           </div>
         </div>
-        <div class="just-acciones">
+        <div class="just-acciones" v-if="tab === 'pendientes'">
           <Boton
             variante="exito"
             tamano="sm"
@@ -125,6 +152,9 @@ onMounted(cargar)
             Rechazar
           </Boton>
         </div>
+        <div class="just-acciones" v-else>
+          <span class="badge" :class="just.estado === 'aprobado' ? 'badge-activo' : 'badge-inactivo'">{{ just.estado }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -138,6 +168,39 @@ onMounted(cargar)
   border-radius: var(--radio-full);
   font-size: 0.8125rem;
   font-weight: 600;
+}
+
+.tabs-barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab-btn {
+  border: 1px solid var(--gris-200);
+  background: white;
+  color: var(--gris-600);
+  border-radius: var(--radio-sm);
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.tab-btn.activo {
+  background: var(--primario-claro);
+  color: var(--primario);
+  border-color: var(--primario-200);
+}
+
+.just-adjunto {
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+.just-adjunto a {
+  color: var(--primario);
+  text-decoration: none;
 }
 
 .vacio-estado {

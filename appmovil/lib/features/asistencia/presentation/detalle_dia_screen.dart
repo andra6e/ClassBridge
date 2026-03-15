@@ -18,9 +18,10 @@ class DetalleDiaScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => JustificarModal(
         fecha: asistencia.fecha,
-        onEnviar: (motivo) => repo.enviarJustificante(
+        onEnviar: (motivo, archivo) => repo.enviarJustificante(
           idAsistencia: asistencia.idAsistencia,
           motivo: motivo,
+          archivo: archivo?.toJson(),
         ),
       ),
     );
@@ -31,7 +32,9 @@ class DetalleDiaScreen extends StatelessWidget {
           content: const Text('Justificante enviado correctamente'),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       Navigator.of(context).pop(true);
@@ -103,9 +106,18 @@ class DetalleDiaScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.description_outlined, size: 18, color: AppColors.warning),
+                              const Icon(
+                                Icons.description_outlined,
+                                size: 18,
+                                color: AppColors.warning,
+                              ),
                               const SizedBox(width: 8),
-                              Text('Justificante enviado', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.warning)),
+                              Text(
+                                'Justificante enviado',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.warning,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 10),
@@ -137,10 +149,7 @@ class DetalleDiaScreen extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 100,
-          child: Text(etiqueta, style: AppTextStyles.label),
-        ),
+        SizedBox(width: 100, child: Text(etiqueta, style: AppTextStyles.label)),
         Expanded(child: Text(valor, style: AppTextStyles.body)),
       ],
     );

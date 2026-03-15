@@ -9,6 +9,9 @@ module.exports = (sequelize) => {
     enviado_por: { type: DataTypes.INTEGER, allowNull: false },
     revisado_por: { type: DataTypes.INTEGER, allowNull: true },
     revisado_en: { type: DataTypes.DATE, allowNull: true },
+    archivo_nombre: { type: DataTypes.STRING(255), allowNull: true },
+    archivo_url: { type: DataTypes.STRING(500), allowNull: true },
+    archivo_mime: { type: DataTypes.STRING(120), allowNull: true },
   }, {
     tableName: 'justificantes',
   });

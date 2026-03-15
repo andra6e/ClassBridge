@@ -1,12 +1,24 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import adminApi from '../../api/admin.api'
+import Boton from '../../components/ui/Boton.vue'
+import Input from '../../components/ui/Input.vue'
+import Modal from '../../components/ui/Modal.vue'
 
 const estudiantes = ref([])
 const grados = ref([])
+const padres = ref([])
 const cargando = ref(true)
 const alerta = ref({ tipo: '', mensaje: '' })
+
 const filtroGrado = ref('')
+const filtroPadre = ref('')
+const filtroEstado = ref('')
+
+const modalEditar = ref(false)
+const guardando = ref(false)
+const seleccionado = ref(null)
+const form = ref({ nombre_completo: '', fecha_nacimiento: '', sexo: '', activo: true })
 
 function mostrarAlerta(tipo, mensaje) {
   alerta.value = { tipo, mensaje }
@@ -36,26 +48,60 @@ function obtenerPadre(est) {
   return '—'
 }
 
-const estudiantesFiltrados = computed(() => {
-  if (!filtroGrado.value) return estudiantes.value
-  return estudiantes.value.filter((est) => obtenerGrado(est) === filtroGrado.value)
-})
-
 async function cargarEstudiantes() {
   cargando.value = true
   try {
-    const [eRes, gRes] = await Promise.all([
-      adminApi.listarEstudiantes(),
+    const [eRes, gRes, pRes] = await Promise.all([
+      adminApi.listarEstudiantes({
+        id_grado: filtroGrado.value || undefined,
+        id_padre: filtroPadre.value || undefined,
+        estado: filtroEstado.value || undefined,
+      }),
       adminApi.listarGrados(),
+      adminApi.listarPadres(),
     ])
     estudiantes.value = eRes.data.data || []
     grados.value = gRes.data.data || []
+    padres.value = pRes.data.data || []
   } catch {
     mostrarAlerta('error', 'Error al cargar estudiantes')
   }
   cargando.value = false
 }
 
+function abrirEditar(est) {
+  seleccionado.value = est
+  form.value = {
+    nombre_completo: est.nombre_completo || '',
+    fecha_nacimiento: est.fecha_nacimiento || '',
+    sexo: est.sexo || '',
+    activo: est.activo !== false,
+  }
+  modalEditar.value = true
+}
+
+async function guardarEdicion() {
+  if (!seleccionado.value) return
+  guardando.value = true
+  try {
+    await adminApi.actualizarEstudiante(seleccionado.value.id_estudiante, {
+      nombre_completo: form.value.nombre_completo,
+      fecha_nacimiento: form.value.fecha_nacimiento || '',
+      sexo: form.value.sexo || '',
+      activo: form.value.activo,
+    })
+    modalEditar.value = false
+    mostrarAlerta('exito', 'Estudiante actualizado')
+    await cargarEstudiantes()
+  } catch (err) {
+    mostrarAlerta('error', err.response?.data?.mensaje || 'Error al actualizar estudiante')
+  }
+  guardando.value = false
+}
+
+const estudiantesFiltrados = computed(() => estudiantes.value)
+
+watch([filtroGrado, filtroPadre, filtroEstado], () => cargarEstudiantes())
 onMounted(cargarEstudiantes)
 </script>
 
@@ -64,7 +110,7 @@ onMounted(cargarEstudiantes)
     <div class="cabecera-pagina">
       <div>
         <h1 class="titulo-pagina">Estudiantes</h1>
-        <p class="subtitulo-pagina">Todos los estudiantes registrados en el sistema</p>
+        <p class="subtitulo-pagina">Filtra por grado, padre y estado. Edita datos y estado del estudiante.</p>
       </div>
     </div>
 
@@ -72,14 +118,26 @@ onMounted(cargarEstudiantes)
 
     <div class="filtros-barra">
       <div class="campo-grupo">
-        <label class="campo-etiqueta">Filtrar por grado</label>
+        <label class="campo-etiqueta">Grado</label>
         <select v-model="filtroGrado" class="campo-select">
-          <option value="">Todos los grados</option>
-          <option v-for="g in grados" :key="g.id_grado" :value="g.nombre">{{ g.nombre }}</option>
+          <option value="">Todos</option>
+          <option v-for="g in grados" :key="g.id_grado" :value="g.id_grado">{{ g.nombre }}</option>
         </select>
       </div>
-      <div class="filtro-resultado">
-        <span class="resultado-count">{{ estudiantesFiltrados.length }}</span> estudiantes
+      <div class="campo-grupo">
+        <label class="campo-etiqueta">Padre</label>
+        <select v-model="filtroPadre" class="campo-select">
+          <option value="">Todos</option>
+          <option v-for="p in padres" :key="p.id_usuario" :value="p.id_usuario">{{ p.nombre_completo }}</option>
+        </select>
+      </div>
+      <div class="campo-grupo">
+        <label class="campo-etiqueta">Estado</label>
+        <select v-model="filtroEstado" class="campo-select">
+          <option value="">Todos</option>
+          <option value="activo">Activos</option>
+          <option value="inactivo">Inactivos</option>
+        </select>
       </div>
     </div>
 
@@ -97,16 +155,12 @@ onMounted(cargarEstudiantes)
                 <th>Padre / Tutor</th>
                 <th>Grado</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="est in estudiantesFiltrados" :key="est.id_estudiante">
-                <td>
-                  <div class="celda-usuario">
-                    <div class="avatar-sm avatar-ambar">{{ est.nombre_completo?.charAt(0)?.toUpperCase() }}</div>
-                    <span class="celda-nombre">{{ est.nombre_completo }}</span>
-                  </div>
-                </td>
+                <td class="celda-nombre">{{ est.nombre_completo }}</td>
                 <td>{{ formatearFecha(est.fecha_nacimiento) }}</td>
                 <td>{{ est.sexo === 'M' ? 'Masculino' : est.sexo === 'F' ? 'Femenino' : '—' }}</td>
                 <td>{{ obtenerPadre(est) }}</td>
@@ -116,6 +170,9 @@ onMounted(cargarEstudiantes)
                     {{ est.activo !== false ? 'Activo' : 'Inactivo' }}
                   </span>
                 </td>
+                <td>
+                  <Boton tamano="sm" @click="abrirEditar(est)">Editar</Boton>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -123,76 +180,45 @@ onMounted(cargarEstudiantes)
       </template>
 
       <div v-else class="vacio-estado">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gris-300)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/>
-        </svg>
-        <p>{{ filtroGrado ? 'No hay estudiantes en este grado' : 'No hay estudiantes registrados' }}</p>
+        <p>No hay estudiantes con los filtros actuales.</p>
       </div>
     </div>
+
+    <Modal :visible="modalEditar" titulo="Editar estudiante" @cerrar="modalEditar = false">
+      <form @submit.prevent="guardarEdicion" class="form-modal">
+        <Input v-model="form.nombre_completo" etiqueta="Nombre" />
+        <Input v-model="form.fecha_nacimiento" etiqueta="Fecha de nacimiento" tipo="date" />
+        <div class="campo-grupo">
+          <label class="campo-etiqueta">Sexo</label>
+          <select v-model="form.sexo" class="campo-select">
+            <option value="">—</option>
+            <option value="M">Masculino</option>
+            <option value="F">Femenino</option>
+          </select>
+        </div>
+        <div class="campo-grupo">
+          <label class="campo-etiqueta">Estado</label>
+          <select v-model="form.activo" class="campo-select">
+            <option :value="true">Activo</option>
+            <option :value="false">Inactivo</option>
+          </select>
+        </div>
+        <div class="form-acciones">
+          <Boton variante="secundario" type="button" @click="modalEditar = false">Cancelar</Boton>
+          <Boton type="submit" :cargando="guardando">Guardar</Boton>
+        </div>
+      </form>
+    </Modal>
   </div>
 </template>
 
 <style scoped>
 .filtros-barra {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 12px;
   margin-bottom: 16px;
 }
-
-.filtros-barra .campo-grupo {
-  max-width: 240px;
-}
-
-.filtro-resultado {
-  font-size: 0.8125rem;
-  color: var(--gris-500);
-  padding-bottom: 8px;
-}
-
-.resultado-count {
-  font-weight: 700;
-  color: var(--gris-800);
-}
-
 .tabla-card { padding: 0; }
-.tabla-card .cargando-centro,
-.tabla-card .vacio-estado { padding: 64px 24px; }
-
-.vacio-estado {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  color: var(--gris-400);
-  font-size: 0.875rem;
-}
-
-.celda-usuario {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.avatar-sm {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.8125rem;
-  flex-shrink: 0;
-}
-
-.avatar-ambar {
-  background: #fffbeb;
-  color: #92400e;
-}
-
-.badge-primario {
-  background: var(--primario-claro);
-  color: var(--primario);
-}
+.badge-primario { background: var(--primario-claro); color: var(--primario); }
 </style>

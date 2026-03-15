@@ -31,4 +31,17 @@ async function contenidoPendiente(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listarHijos, historialAsistencia, contenidoPendiente };
+async function listarNotificaciones(req, res, next) {
+  try {
+    const limite = req.query.limite ? parseInt(req.query.limite, 10) : 30;
+    const resultado = await padresService.listarNotificaciones(req.usuario.id, limite);
+    return exito(res, resultado, 'Notificaciones obtenidas');
+  } catch (err) { next(err); }
+}
+
+module.exports = {
+  listarHijos,
+  historialAsistencia,
+  contenidoPendiente,
+  listarNotificaciones,
+};

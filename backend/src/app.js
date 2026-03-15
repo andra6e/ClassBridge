@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 const rutas = require('./routes');
 const manejadorErrores = require('./middleware/errores.middleware');
 
@@ -25,6 +26,7 @@ app.get('/', (_req, res) => {
 
 // Rutas de la API
 app.use('/api', rutas);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 404
 app.use((_req, res) => {

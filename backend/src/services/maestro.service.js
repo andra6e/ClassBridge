@@ -1,7 +1,10 @@
 const logger = require('../utils/logger');
+const { Op } = require('sequelize');
 const {
   AsignacionGrado, Matricula, Asistencia, ContenidoClase,
 } = require('../database');
+const { guardarArchivoBase64 } = require('../utils/file-storage');
+const { registrarMovimiento } = require('./movimientos.service');
 
 async function obtenerMiGrado(idMaestro) {
   const asignacion = await AsignacionGrado.findOne({
@@ -34,6 +37,12 @@ async function guardarAsistencia({ id_grado, fecha, registros, registrado_por })
   });
 
   logger.info('Asistencia guardada', { id_grado, fecha, total: resultado.length });
+  await registrarMovimiento({
+    id_usuario: registrado_por,
+    rol: 'maestro',
+    accion: 'asistencia_guardada',
+    detalle: `Asistencia guardada para grado ${id_grado} en ${fecha}`,
+  });
   return resultado;
 }
 
@@ -48,23 +57,52 @@ async function obtenerAsistencia(idGrado, fecha) {
 }
 
 async function guardarContenido(datos) {
+  const tipoContenido = datos.tipo_contenido || 'materia';
+  const archivoGuardado = guardarArchivoBase64({
+    carpetaRelativa: 'contenido',
+    archivo: datos.archivo,
+  });
+
+  const where = {
+    id_grado: datos.id_grado,
+    fecha: datos.fecha,
+    tipo_contenido: tipoContenido,
+  };
+  if (tipoContenido === 'materia') where.id_materia = datos.id_materia;
+  else where.id_materia = { [Op.is]: null };
+
   const [contenido, creado] = await ContenidoClase.findOrCreate({
-    where: {
-      id_grado: datos.id_grado,
-      id_materia: datos.id_materia,
-      fecha: datos.fecha,
+    where,
+    defaults: {
+      ...datos,
+      tipo_contenido: tipoContenido,
+      id_materia: tipoContenido === 'materia' ? datos.id_materia : null,
+      archivo_nombre: archivoGuardado?.nombre || null,
+      archivo_url: archivoGuardado?.url || null,
+      archivo_mime: archivoGuardado?.mime || null,
     },
-    defaults: datos,
   });
 
   if (!creado) {
     await contenido.update({
+      tipo_contenido: tipoContenido,
+      id_materia: tipoContenido === 'materia' ? datos.id_materia : null,
       tema: datos.tema,
       explicacion: datos.explicacion,
       actividades: datos.actividades,
+      archivo_nombre: archivoGuardado?.nombre || contenido.archivo_nombre,
+      archivo_url: archivoGuardado?.url || contenido.archivo_url,
+      archivo_mime: archivoGuardado?.mime || contenido.archivo_mime,
       registrado_por: datos.registrado_por,
     });
   }
+
+  await registrarMovimiento({
+    id_usuario: datos.registrado_por,
+    rol: 'maestro',
+    accion: tipoContenido === 'general' ? 'contenido_general_guardado' : 'contenido_materia_guardado',
+    detalle: `Contenido ${tipoContenido} guardado para grado ${datos.id_grado} en ${datos.fecha}`,
+  });
 
   return contenido;
 }
@@ -76,7 +114,7 @@ async function listarContenido(idGrado, fecha) {
   return ContenidoClase.findAll({
     where,
     include: [{ association: 'materia' }],
-    order: [['fecha', 'DESC']],
+    order: [['fecha', 'DESC'], ['tipo_contenido', 'ASC']],
   });
 }
 

@@ -29,11 +29,15 @@ const materiaSeleccionada = ref(null)
 const formTema = ref('')
 const formExplicacion = ref('')
 const formActividades = ref('')
+const formArchivo = ref(null)
 const formError = ref('')
+const tabContenido = ref('materia')
+
+const contenidoGeneral = ref(null)
 
 function materiasConEstado() {
   return MATERIAS.map((m) => {
-    const registrado = contenidosDia.value.find((c) => c.id_materia === m.id)
+    const registrado = contenidosDia.value.find((c) => c.tipo_contenido !== 'general' && c.id_materia === m.id)
     return { ...m, registrado: !!registrado, contenido: registrado || null }
   })
 }
@@ -78,6 +82,18 @@ function abrirModal(materia) {
     formExplicacion.value = ''
     formActividades.value = ''
   }
+  formArchivo.value = null
+  modalVisible.value = true
+}
+
+function abrirModalGeneral() {
+  materiaSeleccionada.value = { id: null, nombre: 'General del día', tipo_contenido: 'general' }
+  formError.value = ''
+  exito.value = ''
+  formTema.value = contenidoGeneral.value?.tema || ''
+  formExplicacion.value = contenidoGeneral.value?.explicacion || ''
+  formActividades.value = contenidoGeneral.value?.actividades || ''
+  formArchivo.value = null
   modalVisible.value = true
 }
 
@@ -93,14 +109,28 @@ async function guardarContenido() {
   }
   guardando.value = true
   formError.value = ''
+  let archivo = undefined
+  if (formArchivo.value) {
+    const base64 = await convertirBase64(formArchivo.value)
+    archivo = {
+      nombre: formArchivo.value.name,
+      mime: formArchivo.value.type || 'application/pdf',
+      base64,
+    }
+  }
+
+  const tipo = materiaSeleccionada.value?.tipo_contenido === 'general' ? 'general' : 'materia'
+
   try {
     await maestroApi.guardarContenido({
       id_grado: miGrado.value.id_grado,
-      id_materia: materiaSeleccionada.value.id,
+      id_materia: tipo === 'materia' ? materiaSeleccionada.value.id : undefined,
+      tipo_contenido: tipo,
       fecha: fecha.value,
       tema: formTema.value.trim(),
       explicacion: formExplicacion.value.trim(),
       actividades: formActividades.value.trim() || null,
+      archivo,
     })
     exito.value = `Contenido de ${materiaSeleccionada.value.nombre} guardado`
     cerrarModal()
@@ -112,7 +142,33 @@ async function guardarContenido() {
   }
 }
 
+function convertirBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const sinPrefix = result.includes(',') ? result.split(',')[1] : result
+      resolve(sinPrefix)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+function cambiarArchivo(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (file.type !== 'application/pdf') {
+    formError.value = 'Solo se permiten archivos PDF'
+    return
+  }
+  formArchivo.value = file
+}
+
 watch(fecha, () => { if (miGrado.value) cargarContenido() })
+watch(contenidosDia, () => {
+  contenidoGeneral.value = contenidosDia.value.find((c) => c.tipo_contenido === 'general') || null
+})
 onMounted(cargarDatos)
 </script>
 
@@ -139,6 +195,10 @@ onMounted(cargarDatos)
       <div v-if="exito" class="alerta alerta-exito">{{ exito }}</div>
 
       <div class="controles-barra">
+        <div class="tabs-barra">
+          <button class="tab-btn" :class="{ activo: tabContenido === 'materia' }" @click="tabContenido = 'materia'">Por materia</button>
+          <button class="tab-btn" :class="{ activo: tabContenido === 'general' }" @click="tabContenido = 'general'">General del día</button>
+        </div>
         <div class="control-chips">
           <div class="control-chip">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -157,7 +217,7 @@ onMounted(cargarDatos)
         </div>
       </div>
 
-      <div class="materias-grid">
+      <div v-if="tabContenido === 'materia'" class="materias-grid">
         <button
           v-for="materia in materiasConEstado()"
           :key="materia.id"
@@ -178,6 +238,13 @@ onMounted(cargarDatos)
           <span v-else class="materia-indicacion">Clic para registrar</span>
         </button>
       </div>
+
+      <div v-else class="tarjeta contenido-general-card">
+        <h3 class="seccion-titulo-sm">Resumen general del día</h3>
+        <p v-if="contenidoGeneral" class="general-preview">{{ contenidoGeneral.tema }} · {{ contenidoGeneral.explicacion }}</p>
+        <p v-else class="general-preview">Aún no hay resumen general registrado para esta fecha.</p>
+        <Boton tamano="sm" @click="abrirModalGeneral">{{ contenidoGeneral ? 'Editar resumen' : 'Crear resumen' }}</Boton>
+      </div>
     </div>
 
     <Modal :visible="modalVisible" :titulo="materiaSeleccionada?.nombre || 'Contenido'" @cerrar="cerrarModal">
@@ -191,6 +258,11 @@ onMounted(cargarDatos)
         <div class="campo-grupo">
           <label class="campo-etiqueta">Actividades (opcional)</label>
           <textarea v-model="formActividades" class="campo-textarea" placeholder="Actividades realizadas o tareas asignadas" rows="3"></textarea>
+        </div>
+        <div class="campo-grupo">
+          <label class="campo-etiqueta">Adjuntar PDF (opcional)</label>
+          <input type="file" accept="application/pdf" class="campo-select" @change="cambiarArchivo" />
+          <small v-if="formArchivo">{{ formArchivo.name }}</small>
         </div>
         <div class="form-acciones">
           <Boton variante="secundario" type="button" @click="cerrarModal">Cancelar</Boton>
@@ -209,6 +281,37 @@ onMounted(cargarDatos)
   margin-bottom: 20px;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.tabs-barra {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-btn {
+  border: 1px solid var(--gris-200);
+  background: white;
+  color: var(--gris-600);
+  border-radius: var(--radio-sm);
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.tab-btn.activo {
+  background: var(--primario-claro);
+  color: var(--primario);
+}
+
+.contenido-general-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.general-preview {
+  font-size: 0.875rem;
+  color: var(--gris-600);
 }
 
 .control-chips {

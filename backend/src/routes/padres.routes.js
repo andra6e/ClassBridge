@@ -10,5 +10,6 @@ router.use(autenticar, permitir('padre'));
 router.get('/hijos', ctrl.listarHijos);
 router.get('/hijos/:id_estudiante/asistencia', ctrl.historialAsistencia);
 router.get('/hijos/:id_estudiante/contenido-pendiente', ctrl.contenidoPendiente);
+router.get('/notificaciones', ctrl.listarNotificaciones);
 
 module.exports = router;

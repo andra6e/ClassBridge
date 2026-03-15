@@ -8,6 +8,7 @@ import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/login_screen.dart';
 import '../../chat/presentation/chat_screen.dart';
 import '../../asistencia/presentation/asistencia_screen.dart';
+import '../../asistencia/data/asistencia_repository.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabCtrl;
+  final _asistenciaRepo = AsistenciaRepository();
   String _nombre = '';
 
   @override
@@ -54,11 +56,19 @@ class _HomeScreenState extends State<HomeScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
+            child: Text(
+              'Cancelar',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Cerrar sesion', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error)),
+            child: Text(
+              'Cerrar sesion',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -73,6 +83,53 @@ class _HomeScreenState extends State<HomeScreen>
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
+    );
+  }
+
+  Future<void> _abrirNotificaciones() async {
+    List<Map<String, dynamic>> items = [];
+    try {
+      items = await _asistenciaRepo.obtenerNotificaciones();
+    } catch (_) {
+      // ignore
+    }
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Notificaciones'),
+        content: SizedBox(
+          width: 420,
+          child: items.isEmpty
+              ? const Text('No hay notificaciones por ahora.')
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final n = items[i];
+                    final estado = n['estado'] ?? 'pendiente';
+                    final estudiante =
+                        (n['asistencia']?['estudiante']?['nombre_completo'] ??
+                                'Estudiante')
+                            .toString();
+                    final revisadoEn = n['revisado_en']?.toString() ?? '';
+                    return ListTile(
+                      dense: true,
+                      title: Text('Justificante $estado'),
+                      subtitle: Text('$estudiante\n$revisadoEn'),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -138,20 +195,32 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 Text('Hola, $_primerNombre', style: AppTextStyles.heading3),
                 const SizedBox(height: 2),
-                Text(
-                  'Portal de padres',
-                  style: AppTextStyles.caption,
-                ),
+                Text('Portal de padres', style: AppTextStyles.caption),
               ],
             ),
           ),
+          IconButton(
+            onPressed: _abrirNotificaciones,
+            icon: const Icon(Icons.notifications_none_rounded, size: 22),
+            style: IconButton.styleFrom(
+              foregroundColor: AppColors.textTertiary,
+              backgroundColor: AppColors.surfaceAlt,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              fixedSize: const Size(40, 40),
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             onPressed: _cerrarSesion,
             icon: const Icon(Icons.logout_rounded, size: 22),
             style: IconButton.styleFrom(
               foregroundColor: AppColors.textTertiary,
               backgroundColor: AppColors.surfaceAlt,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               fixedSize: const Size(40, 40),
             ),
           ),
@@ -175,7 +244,9 @@ class _HomeScreenState extends State<HomeScreen>
           labelColor: AppColors.textOnPrimary,
           unselectedLabelColor: AppColors.textSecondary,
           labelStyle: AppTextStyles.bodyMedium,
-          unselectedLabelStyle: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          unselectedLabelStyle: AppTextStyles.body.copyWith(
+            color: AppColors.textSecondary,
+          ),
           indicator: BoxDecoration(
             color: AppColors.primary,
             borderRadius: BorderRadius.circular(AppSizes.radiusSm),

@@ -20,6 +20,14 @@ async function listarPendientes(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function listarHistorial(req, res, next) {
+  try {
+    const resultado = await justificantesService.listarHistorial(req.usuario.id, req.query.estado);
+    if (resultado.error) return error(res, resultado.error, 404);
+    return exito(res, resultado, 'Historial de justificantes listado');
+  } catch (err) { next(err); }
+}
+
 async function revisarJustificante(req, res, next) {
   try {
     const resultado = await justificantesService.revisarJustificante(
@@ -32,4 +40,4 @@ async function revisarJustificante(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { crearJustificante, listarPendientes, revisarJustificante };
+module.exports = { crearJustificante, listarPendientes, listarHistorial, revisarJustificante };

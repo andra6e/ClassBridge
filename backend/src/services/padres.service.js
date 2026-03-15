@@ -1,6 +1,8 @@
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
-const { Matricula, Asistencia, ContenidoClase } = require('../database');
+const {
+  Matricula, Asistencia, ContenidoClase, Justificante,
+} = require('../database');
 
 async function listarHijos(idPadre) {
   return Matricula.findAll({
@@ -57,4 +59,24 @@ async function contenidoPendiente(idPadre, idEstudiante) {
   return contenido;
 }
 
-module.exports = { listarHijos, historialAsistencia, contenidoPendiente };
+async function listarNotificaciones(idPadre, limite = 30) {
+  return Justificante.findAll({
+    where: {
+      enviado_por: idPadre,
+      estado: { [Op.in]: ['aprobado', 'rechazado'] },
+    },
+    include: [{
+      association: 'asistencia',
+      include: [{ association: 'estudiante' }],
+    }],
+    order: [['revisado_en', 'DESC']],
+    limit: limite,
+  });
+}
+
+module.exports = {
+  listarHijos,
+  historialAsistencia,
+  contenidoPendiente,
+  listarNotificaciones,
+};

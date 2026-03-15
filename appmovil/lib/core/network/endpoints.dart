@@ -12,6 +12,7 @@ class Endpoints {
       '/api/padres/hijos/$idEstudiante/contenido-pendiente';
 
   static const String justificantes = '/api/justificantes';
+  static const String notificacionesPadre = '/api/padres/notificaciones';
 
   static const String iaConversaciones = '/api/ia/conversaciones';
   static const String iaChat = '/api/ia/chat';

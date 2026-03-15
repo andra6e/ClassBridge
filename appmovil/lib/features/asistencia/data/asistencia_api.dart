@@ -19,10 +19,14 @@ class AsistenciaApi {
   Future<Map<String, dynamic>> enviarJustificante({
     required int idAsistencia,
     required String motivo,
+    Map<String, dynamic>? archivo,
   }) {
-    return _client.post(Endpoints.justificantes, {
-      'id_asistencia': idAsistencia,
-      'motivo': motivo,
-    });
+    final payload = {'id_asistencia': idAsistencia, 'motivo': motivo};
+    if (archivo != null) payload['archivo'] = archivo;
+    return _client.post(Endpoints.justificantes, payload);
+  }
+
+  Future<Map<String, dynamic>> obtenerNotificaciones() {
+    return _client.get(Endpoints.notificacionesPadre);
   }
 }

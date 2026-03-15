@@ -6,6 +6,7 @@ const padresRoutes = require('./padres.routes');
 const justificantesRoutes = require('./justificantes.routes');
 const iaRoutes = require('./ia.routes');
 const reportesRoutes = require('./reportes.routes');
+const movimientosRoutes = require('./movimientos.routes');
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/padres', padresRoutes);
 router.use('/justificantes', justificantesRoutes);
 router.use('/ia', iaRoutes);
 router.use('/reportes', reportesRoutes);
+router.use('/movimientos', movimientosRoutes);
 
 module.exports = router;

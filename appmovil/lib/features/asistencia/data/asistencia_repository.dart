@@ -16,7 +16,9 @@ class AsistenciaRepository {
     return lista.map((e) => AsistenciaModelo.fromJson(e)).toList();
   }
 
-  Future<List<ContenidoPendienteModelo>> obtenerContenidoPendiente(int idEstudiante) async {
+  Future<List<ContenidoPendienteModelo>> obtenerContenidoPendiente(
+    int idEstudiante,
+  ) async {
     final resp = await _api.obtenerContenidoPendiente(idEstudiante);
     final lista = resp['data'] as List<dynamic>;
     return lista.map((e) => ContenidoPendienteModelo.fromJson(e)).toList();
@@ -25,10 +27,18 @@ class AsistenciaRepository {
   Future<void> enviarJustificante({
     required int idAsistencia,
     required String motivo,
+    Map<String, dynamic>? archivo,
   }) async {
     await _api.enviarJustificante(
       idAsistencia: idAsistencia,
       motivo: motivo,
+      archivo: archivo,
     );
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerNotificaciones() async {
+    final resp = await _api.obtenerNotificaciones();
+    final lista = resp['data'] as List<dynamic>;
+    return lista.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 }
