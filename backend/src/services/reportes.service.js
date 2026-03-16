@@ -70,4 +70,30 @@ async function obtenerEstadisticasAdmin() {
   };
 }
 
-module.exports = { obtenerEstadisticasAdmin };
+async function obtenerResumenDiario() {
+  const hoy = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  const presentesHoy = await Asistencia.count({ where: { fecha: hoy, estado: 'presente' } });
+  const ausentesHoy  = await Asistencia.count({ where: { fecha: hoy, estado: 'ausente' } });
+  const totalHoy = presentesHoy + ausentesHoy;
+  const tasaHoy  = totalHoy > 0 ? Math.round((presentesHoy / totalHoy) * 100) : null;
+
+  const clasesHoy = await ContenidoClase.count({ where: { fecha: hoy } });
+
+  const justHoy = await Justificante.count({
+    include: [{
+      association: 'asistencia',
+      where: { fecha: hoy },
+      attributes: [],
+    }],
+  });
+
+  return {
+    fecha: hoy,
+    asistencia: { presentes: presentesHoy, ausentes: ausentesHoy, total: totalHoy, tasa: tasaHoy },
+    clasesRegistradas: clasesHoy,
+    justificantesEnviados: justHoy,
+  };
+}
+
+module.exports = { obtenerEstadisticasAdmin, obtenerResumenDiario };

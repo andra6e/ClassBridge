@@ -7,5 +7,6 @@ const router = Router();
 
 router.use(autenticar, permitir('admin'));
 router.get('/admin', ctrl.estadisticasAdmin);
+router.get('/resumen-diario', ctrl.resumenDiario);
 
 module.exports = router;

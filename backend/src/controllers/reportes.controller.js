@@ -10,4 +10,13 @@ async function estadisticasAdmin(req, res, next) {
   }
 }
 
-module.exports = { estadisticasAdmin };
+async function resumenDiario(req, res, next) {
+  try {
+    const resultado = await reportesService.obtenerResumenDiario();
+    return exito(res, resultado, 'Resumen diario obtenido');
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { estadisticasAdmin, resumenDiario };

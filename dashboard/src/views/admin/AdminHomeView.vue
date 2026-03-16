@@ -24,6 +24,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Le
 
 const router = useRouter()
 const datos = ref(null)
+const resumenHoy = ref(null)
 const cargando = ref(true)
 const errorMsg = ref('')
 
@@ -128,8 +129,12 @@ const accesos = [
 
 onMounted(async () => {
   try {
-    const res = await reportesApi.estadisticasAdmin()
-    datos.value = res.data.data
+    const [resGen, resDiario] = await Promise.all([
+      reportesApi.estadisticasAdmin(),
+      reportesApi.resumenDiario(),
+    ])
+    datos.value = resGen.data.data
+    resumenHoy.value = resDiario.data.data
   } catch (err) {
     errorMsg.value = 'Error al cargar estadísticas'
   }
@@ -236,6 +241,32 @@ onMounted(async () => {
             <Bar v-if="chartEstudiantes" :data="chartEstudiantes.data" :options="chartEstudiantes.options" />
             <p v-else class="mensaje-vacio">Sin datos</p>
           </div>
+        </div>
+      </div>
+
+      <h2 class="seccion-titulo">Resumen de Hoy</h2>
+      <div v-if="resumenHoy" class="resumen-hoy-grid">
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor resumen-hoy-presente">{{ resumenHoy.asistencia.presentes }}</span>
+          <span class="resumen-hoy-label">Presentes hoy</span>
+        </div>
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor resumen-hoy-ausente">{{ resumenHoy.asistencia.ausentes }}</span>
+          <span class="resumen-hoy-label">Ausentes hoy</span>
+        </div>
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor">
+            {{ resumenHoy.asistencia.tasa !== null ? resumenHoy.asistencia.tasa + '%' : '—' }}
+          </span>
+          <span class="resumen-hoy-label">Asistencia hoy</span>
+        </div>
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor">{{ resumenHoy.clasesRegistradas }}</span>
+          <span class="resumen-hoy-label">Clases registradas hoy</span>
+        </div>
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor">{{ resumenHoy.justificantesEnviados }}</span>
+          <span class="resumen-hoy-label">Justificantes enviados hoy</span>
         </div>
       </div>
 
@@ -478,9 +509,45 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
+.resumen-hoy-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.resumen-hoy-card {
+  background: white;
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.resumen-hoy-valor {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--gris-900);
+  line-height: 1.1;
+}
+
+.resumen-hoy-presente { color: #10b981; }
+.resumen-hoy-ausente  { color: #ef4444; }
+
+.resumen-hoy-label {
+  font-size: 0.75rem;
+  color: var(--gris-500);
+  font-weight: 500;
+}
+
 @media (max-width: 1100px) {
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metricas-rapidas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .resumen-hoy-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .graficas-grid {
     grid-template-columns: 1fr;
   }
@@ -492,5 +559,6 @@ onMounted(async () => {
 @media (max-width: 640px) {
   .stats-grid { grid-template-columns: 1fr; }
   .metricas-rapidas { grid-template-columns: 1fr; }
+  .resumen-hoy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
