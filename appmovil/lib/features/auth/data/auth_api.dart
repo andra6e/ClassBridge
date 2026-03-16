@@ -12,9 +12,7 @@ class AuthApi {
   }
 
   Future<Map<String, dynamic>> cerrarSesion(String refreshToken) {
-    return _client.post(Endpoints.logout, {
-      'refresh_token': refreshToken,
-    });
+    return _client.post(Endpoints.logout, {'refresh_token': refreshToken});
   }
 
   Future<void> verificarContrasena(String contrasena) async {
@@ -34,8 +32,6 @@ class AuthApi {
   }
 
   Future<void> eliminarTokenPush(String token) async {
-    await _client.delete(Endpoints.pushToken, {
-      'token': token,
-    });
+    await _client.delete(Endpoints.pushToken, {'token': token});
   }
 }

@@ -43,18 +43,28 @@ class ApiClient {
     return respuesta;
   }
 
-  Future<Map<String, dynamic>> post(String ruta, Map<String, dynamic> cuerpo) async {
+  Future<Map<String, dynamic>> post(
+    String ruta,
+    Map<String, dynamic> cuerpo,
+  ) async {
     final respuesta = await _ejecutar(() async {
       final url = Uri.parse('$_baseUrl$ruta');
-      return http.post(url, headers: await _headers(), body: jsonEncode(cuerpo)).timeout(_timeout);
+      return http
+          .post(url, headers: await _headers(), body: jsonEncode(cuerpo))
+          .timeout(_timeout);
     });
     return respuesta;
   }
 
-  Future<Map<String, dynamic>> delete(String ruta, Map<String, dynamic> cuerpo) async {
+  Future<Map<String, dynamic>> delete(
+    String ruta,
+    Map<String, dynamic> cuerpo,
+  ) async {
     final respuesta = await _ejecutar(() async {
       final url = Uri.parse('$_baseUrl$ruta');
-      return http.delete(url, headers: await _headers(), body: jsonEncode(cuerpo)).timeout(_timeout);
+      return http
+          .delete(url, headers: await _headers(), body: jsonEncode(cuerpo))
+          .timeout(_timeout);
     });
     return respuesta;
   }
@@ -66,9 +76,13 @@ class ApiClient {
     try {
       respuesta = await peticion();
     } on TimeoutException {
-      throw ErrorApi('Tiempo de espera agotado. Verifica que el backend este corriendo.');
+      throw ErrorApi(
+        'Tiempo de espera agotado. Verifica que el backend este corriendo.',
+      );
     } catch (e) {
-      throw ErrorApi('Error de conexion. Verifica tu red y que el backend este en http://localhost:3000');
+      throw ErrorApi(
+        'Error de conexion. Verifica tu red y que el backend este en http://localhost:3000',
+      );
     }
 
     if (respuesta.statusCode == 401) {

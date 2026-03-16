@@ -13,7 +13,7 @@ class Endpoints {
 
   static const String justificantes = '/api/justificantes';
   static const String notificacionesPadre = '/api/padres/notificaciones';
-    static const String pushToken = '/api/push/token';
+  static const String pushToken = '/api/push/token';
 
   static const String iaConversaciones = '/api/ia/conversaciones';
   static const String iaChat = '/api/ia/chat';

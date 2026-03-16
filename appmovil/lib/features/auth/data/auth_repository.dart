@@ -24,7 +24,9 @@ class AuthRepository {
     await PushNotificationsService().eliminarTokenActual();
     final refresh = await AlmacenamientoSeguro.obtenerRefreshToken();
     if (refresh != null) {
-      try { await _api.cerrarSesion(refresh); } catch (_) {}
+      try {
+        await _api.cerrarSesion(refresh);
+      } catch (_) {}
     }
     await AlmacenamientoSeguro.borrarTodo();
   }

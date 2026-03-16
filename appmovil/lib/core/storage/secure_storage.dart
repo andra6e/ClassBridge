@@ -25,16 +25,15 @@ class AlmacenamientoSeguro {
   static Future<void> guardarNombre(String nombre) =>
       _almacen.write(key: _llaveNombre, value: nombre);
 
-  static Future<String?> obtenerNombre() =>
-      _almacen.read(key: _llaveNombre);
+  static Future<String?> obtenerNombre() => _almacen.read(key: _llaveNombre);
 
-    static Future<void> guardarPushToken(String token) =>
+  static Future<void> guardarPushToken(String token) =>
       _almacen.write(key: _llavePushToken, value: token);
 
-    static Future<String?> obtenerPushToken() =>
+  static Future<String?> obtenerPushToken() =>
       _almacen.read(key: _llavePushToken);
 
-    static Future<void> borrarPushToken() =>
+  static Future<void> borrarPushToken() =>
       _almacen.delete(key: _llavePushToken);
 
   static Future<void> borrarTodo() => _almacen.deleteAll();

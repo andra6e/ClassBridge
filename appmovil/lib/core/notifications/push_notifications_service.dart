@@ -6,7 +6,8 @@ import '../storage/secure_storage.dart';
 import '../../features/auth/data/auth_api.dart';
 
 class PushNotificationsService {
-  static final PushNotificationsService _instance = PushNotificationsService._();
+  static final PushNotificationsService _instance =
+      PushNotificationsService._();
   factory PushNotificationsService() => _instance;
   PushNotificationsService._();
 
