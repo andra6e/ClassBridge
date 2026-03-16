@@ -307,13 +307,12 @@ async function crearMatricula(datos) {
 }
 
 async function crearAsignacion(datos) {
-  const existente = await AsignacionGrado.findOne({
-    where: {
-      id_grado: datos.id_grado,
-      anio_escolar: datos.anio_escolar,
-    },
-  });
+  const whereGradoAnio = {
+    id_grado: datos.id_grado,
+    anio_escolar: datos.anio_escolar,
+  };
 
+  const existente = await AsignacionGrado.findOne({ where: whereGradoAnio });
   if (existente) {
     await existente.update({
       id_maestro: datos.id_maestro,
@@ -324,10 +323,33 @@ async function crearAsignacion(datos) {
     });
   }
 
-  const asignacion = await AsignacionGrado.create(datos);
-  return AsignacionGrado.findByPk(asignacion.id_asignacion, {
-    include: ['maestro', 'grado'],
-  });
+  try {
+    const asignacion = await AsignacionGrado.create({
+      ...datos,
+      activo: true,
+    });
+    return AsignacionGrado.findByPk(asignacion.id_asignacion, {
+      include: ['maestro', 'grado'],
+    });
+  } catch (error) {
+    if (error?.name !== 'SequelizeUniqueConstraintError') {
+      throw error;
+    }
+
+    const existenteTrasConflicto = await AsignacionGrado.findOne({ where: whereGradoAnio });
+    if (!existenteTrasConflicto) {
+      throw error;
+    }
+
+    await existenteTrasConflicto.update({
+      id_maestro: datos.id_maestro,
+      activo: true,
+    });
+
+    return AsignacionGrado.findByPk(existenteTrasConflicto.id_asignacion, {
+      include: ['maestro', 'grado'],
+    });
+  }
 }
 
 async function eliminarAsignacion(idAsignacion) {

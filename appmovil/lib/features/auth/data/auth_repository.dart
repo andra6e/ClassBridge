@@ -1,4 +1,5 @@
 import '../../../core/storage/secure_storage.dart';
+import '../../../core/notifications/push_notifications_service.dart';
 import 'auth_api.dart';
 import 'auth_models.dart';
 
@@ -14,11 +15,13 @@ class AuthRepository {
       refreshToken: resultado.refreshToken,
     );
     await AlmacenamientoSeguro.guardarNombre(resultado.usuario.nombreCompleto);
+    await PushNotificationsService().registrarTokenActual();
 
     return resultado.usuario;
   }
 
   Future<void> cerrarSesion() async {
+    await PushNotificationsService().eliminarTokenActual();
     final refresh = await AlmacenamientoSeguro.obtenerRefreshToken();
     if (refresh != null) {
       try { await _api.cerrarSesion(refresh); } catch (_) {}

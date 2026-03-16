@@ -6,6 +6,7 @@ class AlmacenamientoSeguro {
   static const _llaveAccess = 'access_token';
   static const _llaveRefresh = 'refresh_token';
   static const _llaveNombre = 'nombre_padre';
+  static const _llavePushToken = 'push_token';
 
   static Future<void> guardarTokens({
     required String accessToken,
@@ -26,6 +27,15 @@ class AlmacenamientoSeguro {
 
   static Future<String?> obtenerNombre() =>
       _almacen.read(key: _llaveNombre);
+
+    static Future<void> guardarPushToken(String token) =>
+      _almacen.write(key: _llavePushToken, value: token);
+
+    static Future<String?> obtenerPushToken() =>
+      _almacen.read(key: _llavePushToken);
+
+    static Future<void> borrarPushToken() =>
+      _almacen.delete(key: _llavePushToken);
 
   static Future<void> borrarTodo() => _almacen.deleteAll();
 }

@@ -39,6 +39,8 @@ Variables requeridas en `.env`:
 | IA_PROVIDER           | Proveedor IA             | openai / gemini (o vacio)        |
 | OPENAI_API_KEY        | API key de OpenAI        | sk-...                           |
 | GEMINI_API_KEY        | API key de Gemini        | (si aplica)                      |
+| FIREBASE_SERVICE_ACCOUNT_JSON | Credenciales Firebase Admin en JSON | {"type":"service_account",...} |
+| FIREBASE_SERVICE_ACCOUNT_PATH | Ruta al archivo de credenciales Firebase | C:\\ruta\\service-account.json |
 
 ## Base de datos
 

@@ -12,6 +12,7 @@ const Justificante = require('../models/justificante.model')(sequelize);
 const ConversacionIA = require('../models/conversacion-ia.model')(sequelize);
 const MensajeIA = require('../models/mensaje-ia.model')(sequelize);
 const Movimiento = require('../models/movimiento.model')(sequelize);
+const DispositivoPush = require('../models/dispositivo-push.model')(sequelize);
 
 const modelos = {
   Usuario,
@@ -26,6 +27,7 @@ const modelos = {
   ConversacionIA,
   MensajeIA,
   Movimiento,
+  DispositivoPush,
 };
 
 Object.values(modelos).forEach((modelo) => {

@@ -22,4 +22,20 @@ class AuthApi {
       'contrasena': contrasena,
     });
   }
+
+  Future<void> registrarTokenPush({
+    required String token,
+    String plataforma = 'android',
+  }) async {
+    await _client.post(Endpoints.pushToken, {
+      'token': token,
+      'plataforma': plataforma,
+    });
+  }
+
+  Future<void> eliminarTokenPush(String token) async {
+    await _client.delete(Endpoints.pushToken, {
+      'token': token,
+    });
+  }
 }

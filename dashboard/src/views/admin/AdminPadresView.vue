@@ -82,8 +82,9 @@ function validar() {
   if (!form.value.nombre_completo.trim()) e.nombre_completo = 'El nombre es obligatorio'
   if (!form.value.correo.trim()) e.correo = 'El correo es obligatorio'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.correo)) e.correo = 'Correo no válido'
-  if (form.value.telefono && !/^[+]?[- 0-9]{7,20}$/.test(form.value.telefono)) {
-    e.telefono = 'Teléfono no válido'
+  const telefonoNormalizado = form.value.telefono.replace(/\D/g, '')
+  if (telefonoNormalizado && !/^\d{8}$/.test(telefonoNormalizado)) {
+    e.telefono = 'El teléfono debe tener 8 dígitos'
   }
   errores.value = e
   return Object.keys(e).length === 0
@@ -92,11 +93,12 @@ function validar() {
 async function guardarEdicion() {
   if (!validar() || !padreSeleccionado.value) return
   guardando.value = true
+  const telefonoNormalizado = form.value.telefono.replace(/\D/g, '')
   try {
     await adminApi.actualizarPadre(padreSeleccionado.value.id_usuario, {
       nombre_completo: form.value.nombre_completo.trim(),
       correo: form.value.correo.trim(),
-      telefono: form.value.telefono.trim(),
+      telefono: telefonoNormalizado,
       activo: form.value.activo,
     })
     modalEditarVisible.value = false

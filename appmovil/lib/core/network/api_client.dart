@@ -51,6 +51,14 @@ class ApiClient {
     return respuesta;
   }
 
+  Future<Map<String, dynamic>> delete(String ruta, Map<String, dynamic> cuerpo) async {
+    final respuesta = await _ejecutar(() async {
+      final url = Uri.parse('$_baseUrl$ruta');
+      return http.delete(url, headers: await _headers(), body: jsonEncode(cuerpo)).timeout(_timeout);
+    });
+    return respuesta;
+  }
+
   Future<Map<String, dynamic>> _ejecutar(
     Future<http.Response> Function() peticion,
   ) async {

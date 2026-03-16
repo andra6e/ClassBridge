@@ -4,6 +4,7 @@ const {
 } = require('../database');
 const { guardarArchivoBase64 } = require('../utils/file-storage');
 const { registrarMovimiento } = require('./movimientos.service');
+const { enviarPushAUsuarios } = require('./push.service');
 
 async function crearJustificante({ id_asistencia, motivo, archivo, enviado_por }) {
   const asistencia = await Asistencia.findByPk(id_asistencia, {
@@ -39,6 +40,23 @@ async function crearJustificante({ id_asistencia, motivo, archivo, enviado_por }
     rol: 'padre',
     accion: 'justificante_enviado',
     detalle: `Justificante enviado para asistencia ${id_asistencia}`,
+  });
+
+  const maestrosAsignados = await AsignacionGrado.findAll({
+    where: { id_grado: asistencia.id_grado, activo: true },
+    attributes: ['id_maestro'],
+  });
+
+  const idsMaestros = [...new Set(maestrosAsignados.map((m) => m.id_maestro))];
+  await enviarPushAUsuarios({
+    idsUsuarios: idsMaestros,
+    titulo: 'Nuevo justificante',
+    cuerpo: `Se recibió un justificante de ${asistencia.estudiante?.nombre_completo || 'un estudiante'}`,
+    data: {
+      tipo: 'justificante_nuevo',
+      id_asistencia,
+      id_grado: asistencia.id_grado,
+    },
   });
 
   return Justificante.findByPk(justificante.id_justificante, {
@@ -95,6 +113,18 @@ async function revisarJustificante(idJustificante, idMaestro, estado) {
     accion: `justificante_${estado}`,
     detalle: `Justificante ${idJustificante} marcado como ${estado}`,
   });
+
+  await enviarPushAUsuarios({
+    idsUsuarios: [justificante.enviado_por],
+    titulo: 'Justificante revisado',
+    cuerpo: `Tu justificante fue ${estado}`,
+    data: {
+      tipo: 'justificante_revisado',
+      estado,
+      id_justificante: justificante.id_justificante,
+    },
+  });
+
   return justificante;
 }
 

@@ -7,6 +7,7 @@ const justificantesRoutes = require('./justificantes.routes');
 const iaRoutes = require('./ia.routes');
 const reportesRoutes = require('./reportes.routes');
 const movimientosRoutes = require('./movimientos.routes');
+const pushRoutes = require('./push.routes');
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/justificantes', justificantesRoutes);
 router.use('/ia', iaRoutes);
 router.use('/reportes', reportesRoutes);
 router.use('/movimientos', movimientosRoutes);
+router.use('/push', pushRoutes);
 
 module.exports = router;

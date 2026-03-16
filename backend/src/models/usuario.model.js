@@ -21,6 +21,7 @@ module.exports = (sequelize) => {
     Usuario.hasMany(modelos.ContenidoClase, { foreignKey: 'registrado_por', as: 'contenidosRegistrados' });
     Usuario.hasMany(modelos.Justificante, { foreignKey: 'enviado_por', as: 'justificantesEnviados' });
     Usuario.hasMany(modelos.Justificante, { foreignKey: 'revisado_por', as: 'justificantesRevisados' });
+    Usuario.hasMany(modelos.DispositivoPush, { foreignKey: 'id_usuario', as: 'dispositivosPush' });
   };
 
   return Usuario;

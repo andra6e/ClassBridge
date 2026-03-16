@@ -1,6 +1,6 @@
 const { z } = require('zod');
 
-const telefonoSchema = z.string().regex(/^[+]?[- 0-9]{7,20}$/);
+const telefonoSchema = z.string().regex(/^\d{8}$/);
 
 const esquemaCrearMaestro = z.object({
   nombre_completo: z.string().min(3),
@@ -76,7 +76,7 @@ const esquemaRegistrarFamilia = z.object({
     nombre_completo: z.string().min(3),
     correo: z.string().email(),
     contrasena: z.string().min(6),
-    telefono: z.string().optional(),
+    telefono: telefonoSchema.optional(),
   }),
   anio_escolar: z.string().regex(/^\d{4}-\d{4}$/),
   estudiantes: z.array(z.object({

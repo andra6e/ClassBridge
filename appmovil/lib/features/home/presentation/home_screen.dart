@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/storage/secure_storage.dart';
+import '../../../core/notifications/push_notifications_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/hijos_provider.dart';
 import '../../../providers/asistencia_access_provider.dart';
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
     _cargarNombre();
+    PushNotificationsService().registrarTokenActual();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<HijosProvider>().cargarHijos();
     });
