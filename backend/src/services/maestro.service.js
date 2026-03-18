@@ -6,11 +6,17 @@ const {
 const { guardarArchivoBase64 } = require('../utils/file-storage');
 const { registrarMovimiento } = require('./movimientos.service');
 
-async function obtenerMiGrado(idMaestro) {
-  const asignacion = await AsignacionGrado.findOne({
+async function obtenerMisGrados(idMaestro) {
+  return AsignacionGrado.findAll({
     where: { id_maestro: idMaestro, activo: true },
     include: [{ association: 'grado' }],
+    order: [['id_grado', 'ASC']],
   });
+}
+
+async function obtenerMiGrado(idMaestro) {
+  const asignaciones = await obtenerMisGrados(idMaestro);
+  const asignacion = asignaciones[0] || null;
   if (!asignacion) return { error: 'No tienes grado asignado' };
   return asignacion;
 }
@@ -126,6 +132,7 @@ async function listarContenido(idGrado, fecha) {
 }
 
 module.exports = {
+  obtenerMisGrados,
   obtenerMiGrado,
   listarEstudiantes,
   guardarAsistencia,

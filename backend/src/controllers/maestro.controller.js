@@ -1,6 +1,14 @@
 const maestroService = require('../services/maestro.service');
 const { exito, error } = require('../utils/response');
 
+async function obtenerMisGrados(req, res, next) {
+  try {
+    const resultado = await maestroService.obtenerMisGrados(req.usuario.id);
+    if (!resultado?.length) return error(res, 'No tienes grados asignados', 404);
+    return exito(res, resultado, 'Grados asignados obtenidos');
+  } catch (err) { next(err); }
+}
+
 async function obtenerMiGrado(req, res, next) {
   try {
     const resultado = await maestroService.obtenerMiGrado(req.usuario.id);
@@ -51,6 +59,7 @@ async function listarContenido(req, res, next) {
 }
 
 module.exports = {
+  obtenerMisGrados,
   obtenerMiGrado,
   listarEstudiantes,
   guardarAsistencia,

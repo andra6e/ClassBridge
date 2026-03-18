@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import maestroApi from '../api/maestro.api'
 import Boton from '../components/ui/Boton.vue'
 import InputCampo from '../components/ui/Input.vue'
@@ -16,7 +16,8 @@ const MATERIAS = [
   { id: 8, nombre: 'Naturales' },
 ]
 
-const miGrado = ref(null)
+const misGrados = ref([])
+const gradoSeleccionadoId = ref(null)
 const fecha = ref(new Date().toISOString().slice(0, 10))
 const contenidosDia = ref([])
 const cargando = ref(false)
@@ -34,6 +35,7 @@ const formError = ref('')
 const tabContenido = ref('materia')
 
 const contenidoGeneral = ref(null)
+const miGrado = computed(() => misGrados.value.find((g) => String(g.id_grado) === String(gradoSeleccionadoId.value)) || null)
 
 function materiasConEstado() {
   return MATERIAS.map((m) => {
@@ -47,9 +49,16 @@ async function cargarDatos() {
   error.value = ''
   exito.value = ''
   try {
-    const resGrado = await maestroApi.obtenerMiGrado()
-    miGrado.value = resGrado.data.data
-    if (miGrado.value) await cargarContenido()
+    const resGrados = await maestroApi.obtenerMisGrados()
+    misGrados.value = resGrados.data.data || []
+
+    const guardado = localStorage.getItem('cb_maestro_grado')
+    const existeGuardado = misGrados.value.some((g) => String(g.id_grado) === String(guardado))
+    gradoSeleccionadoId.value = existeGuardado ? guardado : misGrados.value[0]?.id_grado || null
+    if (gradoSeleccionadoId.value) {
+      localStorage.setItem('cb_maestro_grado', String(gradoSeleccionadoId.value))
+      await cargarContenido()
+    }
   } catch (err) {
     error.value = err.response?.data?.mensaje || 'Error al cargar datos'
   } finally {
@@ -58,6 +67,7 @@ async function cargarDatos() {
 }
 
 async function cargarContenido() {
+  if (!miGrado.value) return
   try {
     const res = await maestroApi.listarContenido({
       id_grado: miGrado.value.id_grado,
@@ -67,6 +77,12 @@ async function cargarContenido() {
   } catch {
     contenidosDia.value = []
   }
+}
+
+async function cambiarGrado(event) {
+  gradoSeleccionadoId.value = event.target.value
+  localStorage.setItem('cb_maestro_grado', String(gradoSeleccionadoId.value))
+  await cargarContenido()
 }
 
 function abrirModal(materia) {
@@ -206,6 +222,14 @@ onMounted(cargarDatos)
             </svg>
             <span>{{ miGrado.grado?.nombre || 'Grado' }}</span>
           </div>
+          <div v-if="misGrados.length > 1" class="control-select-grado">
+            <label class="campo-etiqueta">Grado</label>
+            <select class="campo-select" :value="gradoSeleccionadoId" @change="cambiarGrado">
+              <option v-for="g in misGrados" :key="g.id_asignacion || g.id_grado" :value="g.id_grado">
+                {{ g.grado?.nombre || 'Grado' }} · {{ g.anio_escolar }}
+              </option>
+            </select>
+          </div>
           <div class="control-chip">
             <span class="chip-num">{{ materiasConEstado().filter(m => m.registrado).length }}</span>
             <span>/ {{ MATERIAS.length }} registradas</span>
@@ -317,6 +341,12 @@ onMounted(cargarDatos)
 .control-chips {
   display: flex;
   gap: 8px;
+}
+
+.control-select-grado {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .control-chip {

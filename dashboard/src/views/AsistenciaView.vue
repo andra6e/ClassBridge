@@ -3,7 +3,8 @@ import { ref, onMounted, watch, computed } from 'vue'
 import maestroApi from '../api/maestro.api'
 import Boton from '../components/ui/Boton.vue'
 
-const miGrado = ref(null)
+const misGrados = ref([])
+const gradoSeleccionadoId = ref(null)
 const estudiantes = ref([])
 const registros = ref({})
 const fecha = ref(new Date().toISOString().slice(0, 10))
@@ -15,22 +16,20 @@ const asistenciaGuardada = ref(false)
 
 const presentes = computed(() => Object.values(registros.value).filter(e => e === 'presente').length)
 const ausentes = computed(() => Object.values(registros.value).filter(e => e === 'ausente').length)
+const miGrado = computed(() => misGrados.value.find((g) => String(g.id_grado) === String(gradoSeleccionadoId.value)) || null)
 
 function hoy() {
   return new Date().toISOString().slice(0, 10)
 }
 
 async function cargarDatos() {
+  if (!miGrado.value) return
   cargando.value = true
   error.value = ''
   exito.value = ''
   asistenciaGuardada.value = false
 
   try {
-    const resGrado = await maestroApi.obtenerMiGrado()
-    miGrado.value = resGrado.data.data
-    if (!miGrado.value) return
-
     const resEst = await maestroApi.listarEstudiantes({
       id_grado: miGrado.value.id_grado,
       anio_escolar: miGrado.value.anio_escolar,
@@ -64,6 +63,22 @@ async function cargarDatos() {
   }
 }
 
+async function cargarMisGrados() {
+  const resGrados = await maestroApi.obtenerMisGrados()
+  misGrados.value = resGrados.data.data || []
+
+  const guardado = localStorage.getItem('cb_maestro_grado')
+  const existeGuardado = misGrados.value.some((g) => String(g.id_grado) === String(guardado))
+  gradoSeleccionadoId.value = existeGuardado ? guardado : misGrados.value[0]?.id_grado || null
+  if (gradoSeleccionadoId.value) localStorage.setItem('cb_maestro_grado', String(gradoSeleccionadoId.value))
+}
+
+async function cambiarGrado(event) {
+  gradoSeleccionadoId.value = event.target.value
+  localStorage.setItem('cb_maestro_grado', String(gradoSeleccionadoId.value))
+  await cargarDatos()
+}
+
 async function guardar() {
   guardando.value = true
   error.value = ''
@@ -91,8 +106,15 @@ function marcarTodos(estado) {
   estudiantes.value.forEach((est) => { registros.value[est.id_estudiante] = estado })
 }
 
-watch(fecha, () => cargarDatos())
-onMounted(cargarDatos)
+watch(fecha, () => { if (miGrado.value) cargarDatos() })
+onMounted(async () => {
+  try {
+    await cargarMisGrados()
+    if (miGrado.value) await cargarDatos()
+  } catch (err) {
+    error.value = err.response?.data?.mensaje || 'Error al cargar datos'
+  }
+})
 </script>
 
 <template>
@@ -124,6 +146,14 @@ onMounted(cargarDatos)
               <path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/>
             </svg>
             <span>{{ miGrado.grado?.nombre || 'Grado' }}</span>
+          </div>
+          <div v-if="misGrados.length > 1" class="control-select-grado">
+            <label class="campo-etiqueta">Grado</label>
+            <select class="campo-select" :value="gradoSeleccionadoId" @change="cambiarGrado">
+              <option v-for="g in misGrados" :key="g.id_asignacion || g.id_grado" :value="g.id_grado">
+                {{ g.grado?.nombre || 'Grado' }} · {{ g.anio_escolar }}
+              </option>
+            </select>
           </div>
           <div class="control-chip">
             <span class="chip-num">{{ estudiantes.length }}</span>
@@ -253,6 +283,12 @@ onMounted(cargarDatos)
   display: flex;
   align-items: flex-end;
   gap: 12px;
+}
+
+.control-select-grado {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .control-fecha .campo-etiqueta {

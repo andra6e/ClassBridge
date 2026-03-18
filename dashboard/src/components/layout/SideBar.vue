@@ -6,6 +6,7 @@ import {
   ClipboardList,
   BookOpen,
   Mail,
+  BarChart3,
   Users,
   UserRound,
   GraduationCap,
@@ -21,6 +22,7 @@ const auth = useAuthStore()
 
 const enlacesMaestro = [
   { nombre: 'Mi Grado', ruta: '/dashboard', icono: Home },
+  { nombre: 'Reportes', ruta: '/reportes', icono: BarChart3 },
   { nombre: 'Asistencia', ruta: '/asistencia', icono: ClipboardList },
   { nombre: 'Contenido', ruta: '/contenido', icono: BookOpen },
   { nombre: 'Justificantes', ruta: '/justificantes', icono: Mail },
@@ -28,6 +30,7 @@ const enlacesMaestro = [
 
 const enlacesAdmin = [
   { nombre: 'Inicio', ruta: '/dashboard', icono: Home },
+  { nombre: 'Reportes', ruta: '/reportes', icono: BarChart3 },
   { nombre: 'Maestros', ruta: '/admin/maestros', icono: Users },
   { nombre: 'Padres', ruta: '/admin/padres', icono: UserRound },
   { nombre: 'Estudiantes', ruta: '/admin/estudiantes', icono: GraduationCap },

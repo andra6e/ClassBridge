@@ -13,6 +13,7 @@ const cargandoMov = ref(false)
 const tituloPagina = computed(() => {
   const map = {
     '/dashboard': auth.rolUsuario === 'admin' ? 'Panel de Administración' : 'Mi Grado',
+    '/reportes': 'Reportes',
     '/asistencia': 'Pasar Asistencia',
     '/contenido': 'Contenido de Clase',
     '/justificantes': 'Justificantes',

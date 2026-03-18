@@ -9,6 +9,7 @@ const router = Router();
 
 router.use(autenticar, permitir('maestro'));
 
+router.get('/mis-grados', ctrl.obtenerMisGrados);
 router.get('/mi-grado', ctrl.obtenerMiGrado);
 router.get('/estudiantes', ctrl.listarEstudiantes);
 router.post('/asistencia', validar(esquemaGuardarAsistencia), ctrl.guardarAsistencia);

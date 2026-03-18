@@ -4,6 +4,7 @@ const rutas = [
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue'), meta: { publica: true } },
   { path: '/', redirect: '/dashboard' },
   { path: '/dashboard', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
+  { path: '/reportes', name: 'reportes', component: () => import('../views/ReportesView.vue') },
   { path: '/asistencia', name: 'asistencia', component: () => import('../views/AsistenciaView.vue'), meta: { rolRequerido: 'maestro' } },
   { path: '/contenido', name: 'contenido', component: () => import('../views/ContenidoView.vue'), meta: { rolRequerido: 'maestro' } },
   { path: '/justificantes', name: 'justificantes', component: () => import('../views/JustificantesView.vue'), meta: { rolRequerido: 'maestro' } },

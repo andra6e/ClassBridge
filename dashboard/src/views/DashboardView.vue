@@ -1,33 +1,55 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '../store/auth.store'
 import maestroApi from '../api/maestro.api'
 import reportesApi from '../api/reportes.api'
 import AdminHomeView from './admin/AdminHomeView.vue'
 
 const auth = useAuthStore()
-const miGrado = ref(null)
+const misGrados = ref([])
+const gradoSeleccionadoId = ref(null)
 const estudiantes = ref([])
 const cargando = ref(false)
 const error = ref('')
 const resumenHoyMaestro = ref(null)
 
+const miGrado = computed(() => misGrados.value.find((g) => String(g.id_grado) === String(gradoSeleccionadoId.value)) || null)
+
+async function cargarDetalleGrado() {
+  if (!miGrado.value) return
+
+  const [resResumen, resEst] = await Promise.all([
+    reportesApi.resumenDiarioMaestro({ id_grado: miGrado.value.id_grado }),
+    maestroApi.listarEstudiantes({
+      id_grado: miGrado.value.id_grado,
+      anio_escolar: miGrado.value.anio_escolar,
+    }),
+  ])
+
+  resumenHoyMaestro.value = resResumen.data.data
+  estudiantes.value = resEst.data.data || []
+}
+
+async function cambiarGrado(event) {
+  gradoSeleccionadoId.value = event.target.value
+  localStorage.setItem('cb_maestro_grado', String(gradoSeleccionadoId.value))
+  await cargarDetalleGrado()
+}
+
 onMounted(async () => {
   if (auth.rolUsuario === 'maestro') {
     cargando.value = true
     try {
-      const [res, resResumen] = await Promise.all([
-        maestroApi.obtenerMiGrado(),
-        reportesApi.resumenDiarioMaestro(),
-      ])
-      miGrado.value = res.data.data
-      resumenHoyMaestro.value = resResumen.data.data
-      if (miGrado.value) {
-        const resEst = await maestroApi.listarEstudiantes({
-          id_grado: miGrado.value.id_grado,
-          anio_escolar: miGrado.value.anio_escolar
-        })
-        estudiantes.value = resEst.data.data || []
+      const res = await maestroApi.obtenerMisGrados()
+      misGrados.value = res.data.data || []
+
+      const guardado = localStorage.getItem('cb_maestro_grado')
+      const existeGuardado = misGrados.value.some((g) => String(g.id_grado) === String(guardado))
+      gradoSeleccionadoId.value = existeGuardado ? guardado : misGrados.value[0]?.id_grado || null
+
+      if (gradoSeleccionadoId.value) {
+        localStorage.setItem('cb_maestro_grado', String(gradoSeleccionadoId.value))
+        await cargarDetalleGrado()
       }
     } catch (err) {
       error.value = err.response?.data?.mensaje || 'Error al cargar datos'
@@ -69,6 +91,14 @@ onMounted(async () => {
           <div class="grado-datos">
             <span class="grado-nombre">{{ miGrado.grado?.nombre || 'Grado' }}</span>
             <span class="grado-anio">Año escolar {{ miGrado.anio_escolar }}</span>
+            <div v-if="misGrados.length > 1" class="selector-grado-wrap">
+              <label class="selector-grado-label">Cambiar grado</label>
+              <select class="campo-select selector-grado" :value="gradoSeleccionadoId" @change="cambiarGrado">
+                <option v-for="g in misGrados" :key="g.id_asignacion || g.id_grado" :value="g.id_grado">
+                  {{ g.grado?.nombre || 'Grado' }} · {{ g.anio_escolar }}
+                </option>
+              </select>
+            </div>
           </div>
           <div class="grado-stat">
             <span class="stat-numero">{{ estudiantes.length }}</span>
@@ -206,6 +236,23 @@ onMounted(async () => {
 .grado-anio {
   font-size: 0.8125rem;
   color: var(--gris-500);
+}
+
+.selector-grado-wrap {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selector-grado-label {
+  font-size: 0.75rem;
+  color: var(--gris-500);
+  font-weight: 600;
+}
+
+.selector-grado {
+  max-width: 280px;
 }
 
 .grado-stat {
