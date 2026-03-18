@@ -3,7 +3,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import adminApi from '../../api/admin.api'
 import Boton from '../../components/ui/Boton.vue'
 import Input from '../../components/ui/Input.vue'
+import PhoneInput from '../../components/ui/PhoneInput.vue'
 import Modal from '../../components/ui/Modal.vue'
+import { isValidEmail, isValidInternationalPhone, isValidName, normalizeSpaces, sanitizeName } from '../../utils/formValidations'
 
 const matriculas = ref([])
 const grados = ref([])
@@ -151,8 +153,13 @@ async function guardarNuevoHijo() {
     return
   }
   const a = nuevoHijo.value
-  if (!(a.nombre_completo || '').trim() || (a.nombre_completo || '').trim().length < 3) {
+  const nombreAlumno = sanitizeName(a.nombre_completo || '')
+  if (!nombreAlumno || nombreAlumno.length < 3) {
     mostrarAlerta('error', 'Nombre del alumno es obligatorio (mín. 3 caracteres)')
+    return
+  }
+  if (!isValidName(nombreAlumno)) {
+    mostrarAlerta('error', 'El nombre del alumno no debe contener números')
     return
   }
   if (!a.id_grado) {
@@ -167,7 +174,7 @@ async function guardarNuevoHijo() {
   guardandoNuevoHijo.value = true
   try {
     const estRes = await adminApi.crearEstudiante({
-      nombre_completo: (a.nombre_completo || '').trim(),
+      nombre_completo: nombreAlumno,
       fecha_nacimiento: (a.fecha_nacimiento || '').trim().match(/^\d{4}-\d{2}-\d{2}$/) ? a.fecha_nacimiento.trim() : undefined,
       sexo: a.sexo === 'M' || a.sexo === 'F' ? a.sexo : undefined,
     })
@@ -254,37 +261,59 @@ async function guardarRegistroFamilia() {
     return
   }
 
-  const alumnosValidos = alumnosRegistro.value.filter((a) => (a.nombre_completo || '').trim().length >= 3 && a.id_grado)
+  const alumnosNormalizados = alumnosRegistro.value.map((a) => ({
+    ...a,
+    nombre_completo: sanitizeName(a.nombre_completo || ''),
+  }))
+
+  const alumnosValidos = alumnosNormalizados.filter((a) => a.nombre_completo.length >= 3 && a.id_grado)
   if (alumnosValidos.length === 0) {
     mostrarAlerta('error', 'Añade al menos un alumno con nombre (mín. 3 caracteres) y grado')
     return
   }
+  if (alumnosValidos.some((a) => !isValidName(a.nombre_completo))) {
+    mostrarAlerta('error', 'Los nombres de alumnos no deben contener números')
+    return
+  }
 
   const p = padreNuevo.value
-  if (!(p.nombre_completo || '').trim() || (p.nombre_completo || '').trim().length < 3) {
+  const nombrePadre = sanitizeName(p.nombre_completo || '')
+  if (!nombrePadre || nombrePadre.length < 3) {
     mostrarAlerta('error', 'Nombre del padre es obligatorio (mín. 3 caracteres)')
     return
   }
-  if (!(p.correo || '').trim()) {
+  if (!isValidName(nombrePadre)) {
+    mostrarAlerta('error', 'El nombre del padre no debe contener números')
+    return
+  }
+  if (!normalizeSpaces(p.correo)) {
     mostrarAlerta('error', 'Correo del padre es obligatorio')
+    return
+  }
+  if (!isValidEmail(p.correo)) {
+    mostrarAlerta('error', 'Correo del padre no válido')
     return
   }
   if (!(p.contrasena || '') || p.contrasena.length < 6) {
     mostrarAlerta('error', 'Contraseña del padre es obligatoria (mín. 6 caracteres)')
     return
   }
+  if (normalizeSpaces(p.telefono) && !isValidInternationalPhone(p.telefono)) {
+    mostrarAlerta('error', 'Teléfono no válido para el país seleccionado')
+    return
+  }
   guardandoCrear.value = true
   try {
     await adminApi.registrarFamilia({
       padre: {
-        nombre_completo: p.nombre_completo.trim(),
-        correo: p.correo.trim(),
+        nombre_completo: nombrePadre,
+        correo: normalizeSpaces(p.correo),
         contrasena: p.contrasena,
-        telefono: (p.telefono || '').trim() || undefined,
+        telefono: normalizeSpaces(p.telefono) || undefined,
       },
       anio_escolar: anio,
       estudiantes: alumnosValidos.map((a) => ({
-        nombre_completo: (a.nombre_completo || '').trim(),
+        nombre_completo: a.nombre_completo,
         fecha_nacimiento: (a.fecha_nacimiento || '').trim().match(/^\d{4}-\d{2}-\d{2}$/) ? a.fecha_nacimiento.trim() : undefined,
         sexo: a.sexo === 'M' || a.sexo === 'F' ? a.sexo : undefined,
         id_grado: Number(a.id_grado),
@@ -420,10 +449,10 @@ onMounted(async () => {
     <Modal :visible="modalCrear" titulo="Registrar familia / Crear matrículas" @cerrar="modalCrear = false">
       <form @submit.prevent="guardarRegistroFamilia" class="form-modal form-registro-familia">
         <h4 class="bloque-titulo">Datos del padre / tutor</h4>
-        <Input v-model="padreNuevo.nombre_completo" etiqueta="Nombre completo" placeholder="Ej. Juan Pérez López" />
+        <Input v-model="padreNuevo.nombre_completo" etiqueta="Nombre completo" placeholder="Ej. Juan Pérez López" solo-letras />
         <Input v-model="padreNuevo.correo" etiqueta="Correo" tipo="email" placeholder="correo@ejemplo.com" />
         <Input v-model="padreNuevo.contrasena" etiqueta="Contraseña" tipo="password" placeholder="Mín. 6 caracteres" />
-        <Input v-model="padreNuevo.telefono" etiqueta="Teléfono (opcional)" placeholder="+52 123 456 7890" />
+        <PhoneInput v-model="padreNuevo.telefono" etiqueta="Teléfono (opcional)" default-country="HN" />
 
         <Input v-model="anioEscolarRegistro" etiqueta="Año escolar" placeholder="2025-2026" />
 
@@ -434,7 +463,7 @@ onMounted(async () => {
             <Boton v-if="alumnosRegistro.length > 1" tipo="button" variante="fantasma" tamano="sm" @click="quitarAlumno(idx)">Quitar</Boton>
           </div>
           <div class="alumno-campos">
-            <Input v-model="alumno.nombre_completo" placeholder="Nombre completo" />
+            <Input v-model="alumno.nombre_completo" placeholder="Nombre completo" solo-letras />
             <Input v-model="alumno.fecha_nacimiento" tipo="date" placeholder="Fecha nacimiento" />
             <div class="campo-grupo">
               <label class="campo-etiqueta">Sexo</label>
@@ -526,7 +555,7 @@ onMounted(async () => {
           <template v-else>
             <h4 class="bloque-titulo">Nuevo alumno (mismo padre)</h4>
             <div class="nuevo-hijo-campos">
-              <Input v-model="nuevoHijo.nombre_completo" placeholder="Nombre completo" />
+              <Input v-model="nuevoHijo.nombre_completo" placeholder="Nombre completo" solo-letras />
               <Input v-model="nuevoHijo.fecha_nacimiento" tipo="date" placeholder="Fecha nacimiento" />
               <div class="campo-grupo">
                 <label class="campo-etiqueta">Sexo</label>

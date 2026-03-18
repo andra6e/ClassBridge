@@ -19,4 +19,13 @@ async function resumenDiario(req, res, next) {
   }
 }
 
-module.exports = { estadisticasAdmin, resumenDiario };
+async function resumenDiarioMaestro(req, res, next) {
+  try {
+    const resultado = await reportesService.obtenerResumenDiarioMaestro(req.usuario.id);
+    return exito(res, resultado, 'Resumen diario del maestro obtenido');
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { estadisticasAdmin, resumenDiario, resumenDiarioMaestro };

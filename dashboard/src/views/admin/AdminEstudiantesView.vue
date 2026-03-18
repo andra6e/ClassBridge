@@ -4,6 +4,7 @@ import adminApi from '../../api/admin.api'
 import Boton from '../../components/ui/Boton.vue'
 import Input from '../../components/ui/Input.vue'
 import Modal from '../../components/ui/Modal.vue'
+import { isValidName, sanitizeName } from '../../utils/formValidations'
 
 const estudiantes = ref([])
 const grados = ref([])
@@ -92,10 +93,15 @@ function abrirEditar(est) {
 
 async function guardarEdicion() {
   if (!seleccionado.value) return
+  const nombreLimpio = sanitizeName(form.value.nombre_completo)
+  if (!isValidName(nombreLimpio)) {
+    mostrarAlerta('error', 'El nombre del estudiante no debe contener números')
+    return
+  }
   guardando.value = true
   try {
     await adminApi.actualizarEstudiante(seleccionado.value.id_estudiante, {
-      nombre_completo: form.value.nombre_completo,
+      nombre_completo: nombreLimpio,
       fecha_nacimiento: form.value.fecha_nacimiento || '',
       sexo: form.value.sexo || '',
       activo: form.value.activo,
@@ -199,7 +205,7 @@ onMounted(cargarEstudiantes)
 
     <Modal :visible="modalEditar" titulo="Editar estudiante" @cerrar="modalEditar = false">
       <form @submit.prevent="guardarEdicion" class="form-modal">
-        <Input v-model="form.nombre_completo" etiqueta="Nombre" />
+        <Input v-model="form.nombre_completo" etiqueta="Nombre" solo-letras />
         <Input v-model="form.fecha_nacimiento" etiqueta="Fecha de nacimiento" tipo="date" />
         <div class="campo-grupo">
           <label class="campo-etiqueta">Sexo</label>

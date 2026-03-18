@@ -5,8 +5,9 @@ const ctrl = require('../controllers/reportes.controller');
 
 const router = Router();
 
-router.use(autenticar, permitir('admin'));
-router.get('/admin', ctrl.estadisticasAdmin);
-router.get('/resumen-diario', ctrl.resumenDiario);
+router.use(autenticar);
+router.get('/admin', permitir('admin'), ctrl.estadisticasAdmin);
+router.get('/resumen-diario', permitir('admin'), ctrl.resumenDiario);
+router.get('/resumen-diario-maestro', permitir('maestro'), ctrl.resumenDiarioMaestro);
 
 module.exports = router;

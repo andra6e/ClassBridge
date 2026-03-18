@@ -3,7 +3,9 @@ import { ref, onMounted } from 'vue'
 import adminApi from '../../api/admin.api'
 import Boton from '../../components/ui/Boton.vue'
 import Input from '../../components/ui/Input.vue'
+import PhoneInput from '../../components/ui/PhoneInput.vue'
 import Modal from '../../components/ui/Modal.vue'
+import { isValidEmail, isValidInternationalPhone, isValidName, normalizeSpaces, sanitizeName } from '../../utils/formValidations'
 
 const maestros = ref([])
 const cargando = ref(true)
@@ -31,11 +33,15 @@ function mostrarAlerta(tipo, mensaje) {
 
 function validar() {
   const e = {}
-  if (!form.value.nombre_completo.trim()) e.nombre_completo = 'El nombre es obligatorio'
-  if (!form.value.correo.trim()) e.correo = 'El correo es obligatorio'
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.correo)) e.correo = 'Correo no válido'
+  if (!normalizeSpaces(form.value.nombre_completo)) e.nombre_completo = 'El nombre es obligatorio'
+  else if (!isValidName(form.value.nombre_completo)) e.nombre_completo = 'El nombre no debe contener números'
+  if (!normalizeSpaces(form.value.correo)) e.correo = 'El correo es obligatorio'
+  else if (!isValidEmail(form.value.correo)) e.correo = 'Correo no válido'
   if (!form.value.contrasena.trim()) e.contrasena = 'La contraseña es obligatoria'
   else if (form.value.contrasena.length < 6) e.contrasena = 'Mínimo 6 caracteres'
+  if (normalizeSpaces(form.value.telefono) && !isValidInternationalPhone(form.value.telefono)) {
+    e.telefono = 'Teléfono no válido para el país seleccionado'
+  }
   errores.value = e
   return Object.keys(e).length === 0
 }
@@ -55,7 +61,12 @@ async function crearMaestro() {
   if (!validar()) return
   guardando.value = true
   try {
-    await adminApi.crearMaestro(form.value)
+    await adminApi.crearMaestro({
+      ...form.value,
+      nombre_completo: sanitizeName(form.value.nombre_completo),
+      correo: normalizeSpaces(form.value.correo),
+      telefono: normalizeSpaces(form.value.telefono) || undefined,
+    })
     modalVisible.value = false
     mostrarAlerta('exito', 'Maestro creado correctamente')
     await cargarMaestros()
@@ -161,10 +172,10 @@ onMounted(cargarMaestros)
 
     <Modal :visible="modalVisible" titulo="Nuevo Maestro" @cerrar="modalVisible = false">
       <form @submit.prevent="crearMaestro" class="form-modal">
-        <Input v-model="form.nombre_completo" etiqueta="Nombre completo" placeholder="Ej: Juan Pérez García" :error="errores.nombre_completo" />
+        <Input v-model="form.nombre_completo" etiqueta="Nombre completo" placeholder="Ej: Juan Pérez García" :error="errores.nombre_completo" solo-letras />
         <Input v-model="form.correo" etiqueta="Correo electrónico" tipo="email" placeholder="maestro@correo.com" :error="errores.correo" />
         <Input v-model="form.contrasena" etiqueta="Contraseña" tipo="password" placeholder="Mínimo 6 caracteres" :error="errores.contrasena" />
-        <Input v-model="form.telefono" etiqueta="Teléfono (opcional)" placeholder="+504 0000-0000" />
+        <PhoneInput v-model="form.telefono" etiqueta="Teléfono (opcional)" :error="errores.telefono" default-country="HN" />
         <div class="form-acciones">
           <Boton variante="secundario" @click="modalVisible = false" type="button">Cancelar</Boton>
           <Boton type="submit" :cargando="guardando">Crear Maestro</Boton>

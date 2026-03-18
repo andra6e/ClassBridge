@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth.store'
 import Boton from '../components/ui/Boton.vue'
+import { isValidEmail, normalizeSpaces } from '../utils/formValidations'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -18,10 +19,14 @@ async function iniciarSesion() {
     error.value = 'Ingresa correo y contraseña'
     return
   }
+  if (!isValidEmail(correo.value)) {
+    error.value = 'Ingresa un correo válido (con @)'
+    return
+  }
 
   cargando.value = true
   try {
-    await auth.login(correo.value, contrasena.value)
+    await auth.login(normalizeSpaces(correo.value), contrasena.value)
     router.push('/dashboard')
   } catch (err) {
     if (err.response?.status === 503 || err.response?.data?.mensaje?.includes('Servidor ocupado')) {

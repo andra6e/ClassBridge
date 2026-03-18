@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../store/auth.store'
 import maestroApi from '../api/maestro.api'
+import reportesApi from '../api/reportes.api'
 import AdminHomeView from './admin/AdminHomeView.vue'
 
 const auth = useAuthStore()
@@ -9,13 +10,18 @@ const miGrado = ref(null)
 const estudiantes = ref([])
 const cargando = ref(false)
 const error = ref('')
+const resumenHoyMaestro = ref(null)
 
 onMounted(async () => {
   if (auth.rolUsuario === 'maestro') {
     cargando.value = true
     try {
-      const res = await maestroApi.obtenerMiGrado()
+      const [res, resResumen] = await Promise.all([
+        maestroApi.obtenerMiGrado(),
+        reportesApi.resumenDiarioMaestro(),
+      ])
       miGrado.value = res.data.data
+      resumenHoyMaestro.value = resResumen.data.data
       if (miGrado.value) {
         const resEst = await maestroApi.listarEstudiantes({
           id_grado: miGrado.value.id_grado,
@@ -68,6 +74,30 @@ onMounted(async () => {
             <span class="stat-numero">{{ estudiantes.length }}</span>
             <span class="stat-label">Estudiantes</span>
           </div>
+        </div>
+      </div>
+
+      <h2 class="seccion-titulo">Resumen de Hoy (Mi Grado)</h2>
+      <div class="resumen-hoy-grid">
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor resumen-hoy-presente">{{ resumenHoyMaestro?.asistencia?.presentes ?? 0 }}</span>
+          <span class="resumen-hoy-label">Presentes hoy</span>
+        </div>
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor resumen-hoy-ausente">{{ resumenHoyMaestro?.asistencia?.ausentes ?? 0 }}</span>
+          <span class="resumen-hoy-label">Ausentes hoy</span>
+        </div>
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor">{{ resumenHoyMaestro?.asistencia?.tasa !== null && resumenHoyMaestro?.asistencia?.tasa !== undefined ? `${resumenHoyMaestro.asistencia.tasa}%` : '—' }}</span>
+          <span class="resumen-hoy-label">Asistencia hoy</span>
+        </div>
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor">{{ resumenHoyMaestro?.clasesRegistradas ?? 0 }}</span>
+          <span class="resumen-hoy-label">Clases registradas hoy</span>
+        </div>
+        <div class="resumen-hoy-card">
+          <span class="resumen-hoy-valor">{{ resumenHoyMaestro?.justificantesEnviados ?? 0 }}</span>
+          <span class="resumen-hoy-label">Justificantes enviados hoy</span>
         </div>
       </div>
 
@@ -204,6 +234,39 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
+}
+
+.resumen-hoy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.resumen-hoy-card {
+  background: white;
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.resumen-hoy-valor {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--gris-900);
+  line-height: 1;
+}
+
+.resumen-hoy-presente { color: #10b981; }
+.resumen-hoy-ausente { color: #ef4444; }
+
+.resumen-hoy-label {
+  font-size: 0.85rem;
+  color: var(--gris-600);
 }
 
 .accion-card {

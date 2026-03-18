@@ -1,7 +1,7 @@
 ﻿const { Op, fn, col, literal } = require('sequelize');
 const {
   Usuario, Estudiante, Matricula, Asistencia, Justificante,
-  ContenidoClase, ConversacionIA, MensajeIA, Grado,
+  ContenidoClase, ConversacionIA, MensajeIA, Grado, AsignacionGrado,
 } = require('../database');
 
 async function obtenerEstadisticasAdmin() {
@@ -96,4 +96,54 @@ async function obtenerResumenDiario() {
   };
 }
 
-module.exports = { obtenerEstadisticasAdmin, obtenerResumenDiario };
+async function obtenerResumenDiarioMaestro(idMaestro) {
+  const hoy = new Date().toISOString().slice(0, 10);
+
+  const asignacion = await AsignacionGrado.findOne({
+    where: { id_maestro: idMaestro, activo: true },
+    include: [{ association: 'grado', attributes: ['id_grado', 'nombre'] }],
+  });
+
+  if (!asignacion) {
+    return {
+      fecha: hoy,
+      grado: null,
+      anioEscolar: null,
+      asistencia: { presentes: 0, ausentes: 0, total: 0, tasa: null },
+      clasesRegistradas: 0,
+      justificantesEnviados: 0,
+      mensaje: 'No tienes grado asignado',
+    };
+  }
+
+  const idGrado = asignacion.id_grado;
+
+  const presentesHoy = await Asistencia.count({ where: { fecha: hoy, estado: 'presente', id_grado: idGrado } });
+  const ausentesHoy = await Asistencia.count({ where: { fecha: hoy, estado: 'ausente', id_grado: idGrado } });
+  const totalHoy = presentesHoy + ausentesHoy;
+  const tasaHoy = totalHoy > 0 ? Math.round((presentesHoy / totalHoy) * 100) : null;
+
+  const clasesHoy = await ContenidoClase.count({ where: { fecha: hoy, id_grado: idGrado } });
+
+  const justHoy = await Justificante.count({
+    include: [{
+      association: 'asistencia',
+      where: { fecha: hoy, id_grado: idGrado },
+      attributes: [],
+    }],
+  });
+
+  return {
+    fecha: hoy,
+    grado: {
+      id_grado: asignacion.grado?.id_grado || idGrado,
+      nombre: asignacion.grado?.nombre || null,
+    },
+    anioEscolar: asignacion.anio_escolar,
+    asistencia: { presentes: presentesHoy, ausentes: ausentesHoy, total: totalHoy, tasa: tasaHoy },
+    clasesRegistradas: clasesHoy,
+    justificantesEnviados: justHoy,
+  };
+}
+
+module.exports = { obtenerEstadisticasAdmin, obtenerResumenDiario, obtenerResumenDiarioMaestro };

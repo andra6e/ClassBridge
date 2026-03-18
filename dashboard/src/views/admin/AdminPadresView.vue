@@ -3,7 +3,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import adminApi from '../../api/admin.api'
 import Boton from '../../components/ui/Boton.vue'
 import Input from '../../components/ui/Input.vue'
+import PhoneInput from '../../components/ui/PhoneInput.vue'
 import Modal from '../../components/ui/Modal.vue'
+import { isValidEmail, isValidInternationalPhone, isValidName, normalizeSpaces, sanitizeName } from '../../utils/formValidations'
 
 const padres = ref([])
 const cargando = ref(true)
@@ -79,11 +81,12 @@ function abrirEditar(p) {
 
 function validar() {
   const e = {}
-  if (!form.value.nombre_completo.trim()) e.nombre_completo = 'El nombre es obligatorio'
-  if (!form.value.correo.trim()) e.correo = 'El correo es obligatorio'
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.correo)) e.correo = 'Correo no válido'
-  if (form.value.telefono && !/^[+]?[- 0-9]{7,20}$/.test(form.value.telefono)) {
-    e.telefono = 'Teléfono no válido'
+  if (!normalizeSpaces(form.value.nombre_completo)) e.nombre_completo = 'El nombre es obligatorio'
+  else if (!isValidName(form.value.nombre_completo)) e.nombre_completo = 'El nombre no debe contener números'
+  if (!normalizeSpaces(form.value.correo)) e.correo = 'El correo es obligatorio'
+  else if (!isValidEmail(form.value.correo)) e.correo = 'Correo no válido'
+  if (normalizeSpaces(form.value.telefono) && !isValidInternationalPhone(form.value.telefono)) {
+    e.telefono = 'Teléfono no válido para el país seleccionado'
   }
   errores.value = e
   return Object.keys(e).length === 0
@@ -94,9 +97,9 @@ async function guardarEdicion() {
   guardando.value = true
   try {
     await adminApi.actualizarPadre(padreSeleccionado.value.id_usuario, {
-      nombre_completo: form.value.nombre_completo.trim(),
-      correo: form.value.correo.trim(),
-      telefono: form.value.telefono.trim(),
+      nombre_completo: sanitizeName(form.value.nombre_completo),
+      correo: normalizeSpaces(form.value.correo),
+      telefono: normalizeSpaces(form.value.telefono),
       activo: form.value.activo,
     })
     modalEditarVisible.value = false
@@ -224,9 +227,9 @@ onMounted(cargarPadres)
 
     <Modal :visible="modalEditarVisible" titulo="Editar Padre" @cerrar="modalEditarVisible = false">
       <form @submit.prevent="guardarEdicion" class="form-modal">
-        <Input v-model="form.nombre_completo" etiqueta="Nombre completo" :error="errores.nombre_completo" />
+        <Input v-model="form.nombre_completo" etiqueta="Nombre completo" :error="errores.nombre_completo" solo-letras />
         <Input v-model="form.correo" etiqueta="Correo" tipo="email" :error="errores.correo" />
-        <Input v-model="form.telefono" etiqueta="Teléfono" :error="errores.telefono" />
+        <PhoneInput v-model="form.telefono" etiqueta="Teléfono" :error="errores.telefono" default-country="HN" />
         <div class="campo-grupo">
           <label class="campo-etiqueta">Estado</label>
           <select v-model="form.activo" class="campo-select">
